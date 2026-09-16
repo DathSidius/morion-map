@@ -531,3 +531,248 @@ body.editing .custom-marker { cursor: move; }
     .breadcrumbs { padding: 8px 16px; }
     .pin-digit { width: 46px; height: 58px; font-size: 26px; }
 }
+/* ===== ВКЛАДКИ В МОДАЛКЕ ===== */
+.modal-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 28px 0;
+    background: linear-gradient(180deg, var(--parchment), var(--parchment-dark));
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+.modal-tabs::-webkit-scrollbar { height: 4px; }
+.modal-tabs::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+.modal-tab {
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-family: var(--heading-font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--ink-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+}
+.modal-tab:hover {
+    color: var(--accent);
+    background: rgba(255,255,255,0.3);
+}
+.modal-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(255,255,255,0.5);
+}
+.modal-tab .tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: var(--accent);
+    color: var(--parchment);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.modal-tab.active .tab-count {
+    background: var(--accent-2);
+}
+
+/* ===== ПАНЕЛИ ВКЛАДОК ===== */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ===== ХЛЕБНЫЕ КРОШКИ ===== */
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 28px;
+    background: var(--parchment-deep);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--heading-font);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    flex-wrap: wrap;
+}
+.breadcrumbs a,
+.breadcrumbs button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 700;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background 0.15s;
+    text-decoration: none;
+}
+.breadcrumbs a:hover,
+.breadcrumbs button:hover {
+    background: rgba(139, 45, 26, 0.1);
+}
+.breadcrumbs .sep {
+    color: var(--ink-muted);
+    opacity: 0.6;
+}
+.breadcrumbs .current {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+/* ===== СПИСОК ЭЛЕМЕНТОВ (подлокации, фракции, связи) ===== */
+.items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.item-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--parchment-dark);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+}
+.item-card:hover {
+    background: var(--parchment);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--shadow);
+}
+.item-card .item-icon {
+    font-size: 28px;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.item-card .item-content {
+    flex: 1;
+    min-width: 0;
+}
+.item-card .item-name {
+    font-family: var(--heading-font);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 3px;
+}
+.item-card .item-subtitle {
+    font-family: var(--heading-font);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 5px;
+}
+.item-card .item-short {
+    font-family: var(--body-font);
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.4;
+}
+.item-card .item-arrow {
+    color: var(--ink-muted);
+    font-size: 18px;
+    align-self: center;
+    transition: transform 0.2s, color 0.2s;
+}
+.item-card:hover .item-arrow {
+    color: var(--accent);
+    transform: translateX(3px);
+}
+
+/* ===== ПУСТОЙ СПИСОК ===== */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    font-family: var(--body-font);
+    font-size: 16px;
+    color: var(--ink-muted);
+    font-style: italic;
+    background: var(--parchment-dark);
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+}
+.empty-state .empty-icon {
+    display: block;
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.4;
+}
+
+/* ===== КНОПКА ДОБАВЛЕНИЯ В РАЗДЕЛЕ ===== */
+.add-item-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px;
+    margin-top: 12px;
+    background: transparent;
+    border: 2px dashed var(--border-strong);
+    border-radius: 8px;
+    color: var(--accent);
+    font-family: var(--heading-font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.add-item-btn:hover {
+    background: var(--parchment-dark);
+    border-style: solid;
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+/* ===== ИНФОРМАЦИЯ О ФРАКЦИИ (руководитель, участники) ===== */
+.faction-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: var(--parchment-dark);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+.faction-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.faction-meta-item .meta-label {
+    font-family: var(--heading-font);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+.faction-meta-item .meta-value {
+    font-family: var(--body-font);
+    font-size: 16px;
+    color: var(--ink);
+}

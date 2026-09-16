@@ -28,7 +28,7 @@ window.MORION_CONFIG = {
     // ============================================================
     KIND_INFO: {
         location:    { icon: '📍', label: 'Локация на карте' },
-        sublocation: { icon: '🏛', label: 'Подлокация' },
+        sublocation: { icon: '🏛', label: 'Подлокация (внутри локации)' },
         faction:     { icon: '⚔️', label: 'Фракция' }
     },
 

@@ -24,7 +24,7 @@ let currentPin = '';
 //  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================
 
-// Тип записи (иконка + подпись)
+// Определяет набор типов и CSS для записи
 function getTypeInfo(record) {
     if (record.kind === 'faction') {
         return CONFIG.FACTION_TYPES[record.type] || CONFIG.FACTION_TYPES.guild;
@@ -35,17 +35,17 @@ function getTypeInfo(record) {
     return CONFIG.LOCATION_TYPES[record.type] || CONFIG.LOCATION_TYPES.city;
 }
 
-// Дети конкретного родителя
+// Записи-дети конкретного родителя
 function getChildren(parentId, kind) {
     return locations.filter(l => l.parentId === parentId && l.kind === kind);
 }
 
-// Найти по id
+// Найти запись по id
 function findById(id) {
     return locations.find(l => l.id === id);
 }
 
-// Путь до записи (для хлебных крошек)
+// Путь от корня до записи (для хлебных крошек)
 function getPath(record) {
     const path = [];
     let current = record;
@@ -59,7 +59,7 @@ function getPath(record) {
     return path;
 }
 
-// UI утилиты
+// Утилиты
 function setStatus(state, text) {
     const bar = document.getElementById('statusBar');
     bar.className = 'status-bar ' + state;
@@ -98,7 +98,11 @@ function leafletToImage(latlng) {
 function migrateLocations() {
     locations.forEach(loc => {
         if (!loc.kind) loc.kind = 'location';
-        if (loc.parentId === undefined) loc.parentId = null;
+        if (loc.kind === 'location') {
+            if (loc.parentId === undefined) loc.parentId = null;
+        } else {
+            if (!loc.parentId) loc.parentId = null;
+        }
     });
 }
 
@@ -167,7 +171,7 @@ function initMap() {
 //  ЗАГРУЗКА / СОХРАНЕНИЕ
 // ============================================================
 async function loadLocations() {
-    setStatus('loading', 'Загрузка...');
+    setStatus('loading', 'Загрузка локаций...');
     try {
         const resp = await fetch(CONFIG.API_LOCATIONS);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -246,9 +250,6 @@ function renderMarkers() {
             }
         });
 
-        // В режиме редактора маркер можно таскать
-        // Клик при этом НЕ перехватываем — попап откроется как обычно,
-        // а через него откроется модалка с вкладками и кнопками добавления
         if (isEditing) {
             marker.on('dragend', (e) => {
                 const pos = e.target.getLatLng();
@@ -256,6 +257,12 @@ function renderMarkers() {
                 loc.x = coords.x;
                 loc.y = coords.y;
                 saveLocations();
+            });
+            marker.on('click', (e) => {
+                if (isEditing) {
+                    L.DomEvent.stopPropagation(e);
+                    openEditModal(loc);
+                }
             });
         }
 
@@ -293,14 +300,16 @@ function openDetailsModal(loc, activeTab) {
     const overlay = document.getElementById('modalOverlay');
     const modal = document.getElementById('modalContent');
 
+    // Определяем доступные вкладки
     const isFaction = loc.kind === 'faction';
-    const hasSub = loc.kind === 'location';
+    const hasSub = loc.kind === 'location'; // подлокации бывают только у локаций на карте
     const hasFactions = loc.kind === 'location' || loc.kind === 'sublocation';
 
     const subCount = hasSub ? getChildren(loc.id, 'sublocation').length : 0;
     const factCount = hasFactions ? getChildren(loc.id, 'faction').length : 0;
     const linksCount = (loc.links || []).length;
 
+    // По умолчанию активная — первая доступная
     if (!activeTab) activeTab = 'desc';
 
     // Хлебные крошки
@@ -355,7 +364,7 @@ function openDetailsModal(loc, activeTab) {
         </div>
     `;
 
-    // Переключение вкладок
+    // Обработчики вкладок
     modal.querySelectorAll('.modal-tab').forEach(tab => {
         tab.onclick = () => {
             const target = tab.getAttribute('data-tab');
@@ -370,7 +379,7 @@ function openDetailsModal(loc, activeTab) {
     overlay.classList.add('open');
 }
 
-// --- Вкладка "Описание" ---
+// --- Описание ---
 function buildDescTab(loc, info) {
     let html = '';
     if (loc.image) {
@@ -378,6 +387,7 @@ function buildDescTab(loc, info) {
     }
     html += `<div class="modal-description">${formatDescription(loc.description || loc.short || 'Пустое описание.')}</div>`;
 
+    // Доп. поля фракции
     if (loc.kind === 'faction') {
         const metaItems = [];
         if (loc.leader) metaItems.push(`<div class="faction-meta-item"><span class="meta-label">Руководитель</span><span class="meta-value">${escapeHtml(loc.leader)}</span></div>`);
@@ -396,7 +406,7 @@ function buildDescTab(loc, info) {
     return html;
 }
 
-// --- Вкладка "Районы" (подлокации) ---
+// --- Подлокации ---
 function buildSubTab(loc) {
     const subs = getChildren(loc.id, 'sublocation');
 
@@ -429,7 +439,7 @@ function buildSubTab(loc) {
     return html;
 }
 
-// --- Вкладка "Фракции" ---
+// --- Фракции ---
 function buildFacTab(loc) {
     const facs = getChildren(loc.id, 'faction');
 
@@ -462,7 +472,7 @@ function buildFacTab(loc) {
     return html;
 }
 
-// --- Вкладка "Связи" ---
+// --- Связи ---
 function buildLinksTab(loc) {
     const links = (loc.links || []).map(id => findById(id)).filter(Boolean);
 
@@ -512,7 +522,7 @@ function editFromDetails(id) {
 }
 
 // ============================================================
-//  БЫСТРОЕ СОЗДАНИЕ ПОДЛОКАЦИИ / ФРАКЦИИ
+//  БЫСТРОЕ ДОБАВЛЕНИЕ ПОДЛОКАЦИИ / ФРАКЦИИ
 // ============================================================
 function addSublocationTo(parentId) {
     const newRec = {
@@ -676,6 +686,7 @@ function openEditModal(loc, isNew = false) {
     const isSublocation = loc.kind === 'sublocation';
     const isLocation = loc.kind === 'location';
 
+    // Набор типов для текущей категории
     let typesDict;
     if (isFaction) typesDict = CONFIG.FACTION_TYPES;
     else if (isSublocation) typesDict = CONFIG.SUBLOCATION_TYPES;
@@ -685,7 +696,7 @@ function openEditModal(loc, isNew = false) {
         `<option value="${key}" ${loc.type === key ? 'selected' : ''}>${info.icon} ${info.label}</option>`
     ).join('');
 
-    // Селект родителя для новых вложенных записей
+    // Селект родителя (только для новых записей)
     let parentSelectHtml = '';
     if (isNew && !isLocation) {
         const possibleParents = locations.filter(l => l.kind === 'location' || l.kind === 'sublocation');
@@ -715,7 +726,7 @@ function openEditModal(loc, isNew = false) {
         return `<span class="modal-link-btn" data-remove-link="${id}" style="cursor:pointer;">${escapeHtml(t.name)} ✕</span>`;
     }).join('');
 
-    // Доп. поля фракции
+    // Доп. поля для фракций
     let factionFieldsHtml = '';
     if (isFaction) {
         factionFieldsHtml = `
@@ -734,6 +745,7 @@ function openEditModal(loc, isNew = false) {
         `;
     }
 
+    // Заголовок формы
     const kindLabel = isNew ? 'Новая запись' : 'Редактирование';
     const recordKindLabel = CONFIG.KIND_INFO[loc.kind] ? CONFIG.KIND_INFO[loc.kind].label : '';
 
@@ -802,6 +814,7 @@ function openEditModal(loc, isNew = false) {
 
     let currentLinksArr = [...(loc.links || [])];
 
+    // Загрузка файла
     fFile.onchange = async () => {
         const file = fFile.files[0];
         if (!file) return;
@@ -857,6 +870,7 @@ function openEditModal(loc, isNew = false) {
     }
     renderLinks();
 
+    // Сохранение
     modal.querySelector('#f-save').onclick = async () => {
         const name = fName.value.trim();
         if (!name) { alert('Введите название'); return; }
@@ -874,6 +888,7 @@ function openEditModal(loc, isNew = false) {
             loc.goals = fGoals ? fGoals.value.trim() : '';
         }
 
+        // Если новая запись и есть выбор родителя — берём из селекта
         if (isNew && fParent) {
             loc.parentId = fParent.value;
         }
@@ -885,10 +900,10 @@ function openEditModal(loc, isNew = false) {
         }
 
         const ok = await saveLocations();
-        if (ok) {
-            closeModal();
+        if (ok) { 
+            closeModal(); 
             renderMarkers();
-            // После создания вложенной записи — вернуться к родителю
+            // Если создали подлокацию/фракцию — открываем родителя обратно
             if (isNew && loc.parentId) {
                 const parent = findById(loc.parentId);
                 if (parent) {
@@ -899,6 +914,7 @@ function openEditModal(loc, isNew = false) {
         }
     };
 
+    // Удаление
     if (!isNew) {
         modal.querySelector('#f-delete').onclick = async () => {
             const children = locations.filter(l => l.parentId === loc.id);
@@ -908,7 +924,7 @@ function openEditModal(loc, isNew = false) {
             }
             if (!confirm(confirmMsg)) return;
 
-            // Удаляем запись и всех потомков
+            // Удаляем саму запись + всех потомков
             const toDelete = new Set([loc.id]);
             let changed = true;
             while (changed) {
@@ -921,6 +937,7 @@ function openEditModal(loc, isNew = false) {
                 });
             }
             locations = locations.filter(l => !toDelete.has(l.id));
+            // Чистим связи
             locations.forEach(l => {
                 if (l.links) l.links = l.links.filter(id => !toDelete.has(id));
             });
