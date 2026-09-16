@@ -1,11 +1,8 @@
 // ============================================================
-//  ЛОГИКА КАРТЫ МОРРИОНА
-//  Все настройки — в config.js
+//  ЛОГИКА КАРТЫ МОРРИОНА — С ПОДЛОКАЦИЯМИ И ФРАКЦИЯМИ
 // ============================================================
 
-// Забираем конфиг
 const CONFIG = window.MORION_CONFIG;
-const TYPE_INFO = CONFIG.TYPE_INFO;
 
 // ============================================================
 //  ВЫЧИСЛЕНИЕ ZOOM LEVEL ДЛЯ CRS.Simple
@@ -24,8 +21,45 @@ let isEditing = false;
 let currentPin = '';
 
 // ============================================================
-//  УТИЛИТЫ
+//  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================
+
+// Определяет набор типов и CSS для записи
+function getTypeInfo(record) {
+    if (record.kind === 'faction') {
+        return CONFIG.FACTION_TYPES[record.type] || CONFIG.FACTION_TYPES.guild;
+    }
+    if (record.kind === 'sublocation') {
+        return CONFIG.SUBLOCATION_TYPES[record.type] || CONFIG.SUBLOCATION_TYPES.district;
+    }
+    return CONFIG.LOCATION_TYPES[record.type] || CONFIG.LOCATION_TYPES.city;
+}
+
+// Записи-дети конкретного родителя
+function getChildren(parentId, kind) {
+    return locations.filter(l => l.parentId === parentId && l.kind === kind);
+}
+
+// Найти запись по id
+function findById(id) {
+    return locations.find(l => l.id === id);
+}
+
+// Путь от корня до записи (для хлебных крошек)
+function getPath(record) {
+    const path = [];
+    let current = record;
+    let depth = 0;
+    while (current && depth < 10) {
+        path.unshift(current);
+        if (!current.parentId) break;
+        current = findById(current.parentId);
+        depth++;
+    }
+    return path;
+}
+
+// Утилиты
 function setStatus(state, text) {
     const bar = document.getElementById('statusBar');
     bar.className = 'status-bar ' + state;
@@ -59,6 +93,20 @@ function leafletToImage(latlng) {
 }
 
 // ============================================================
+//  МИГРАЦИЯ СТАРЫХ ДАННЫХ
+// ============================================================
+function migrateLocations() {
+    locations.forEach(loc => {
+        if (!loc.kind) loc.kind = 'location';
+        if (loc.kind === 'location') {
+            if (loc.parentId === undefined) loc.parentId = null;
+        } else {
+            if (!loc.parentId) loc.parentId = null;
+        }
+    });
+}
+
+// ============================================================
 //  СТАРТОВЫЙ ВИД
 // ============================================================
 function applyStartView(animate) {
@@ -83,7 +131,7 @@ function initMap() {
     const W = CONFIG.IMAGE_WIDTH;
     const H = CONFIG.IMAGE_HEIGHT;
 
-    console.log('W=' + W + ' H=' + H + ' ZOOM_LEVEL=' + ZOOM_LEVEL + ' WORLD_W=' + WORLD_W + ' WORLD_H=' + WORLD_H);
+    console.log('W=' + W + ' H=' + H + ' ZOOM_LEVEL=' + ZOOM_LEVEL);
 
     map = L.map('map', {
         crs: L.CRS.Simple,
@@ -117,12 +165,10 @@ function initMap() {
     map.on('click', onMapClick);
 
     window.addEventListener('resize', () => map.invalidateSize());
-
-    console.log('Карта инициализирована.');
 }
 
 // ============================================================
-//  ЗАГРУЗКА / СОХРАНЕНИЕ ЛОКАЦИЙ
+//  ЗАГРУЗКА / СОХРАНЕНИЕ
 // ============================================================
 async function loadLocations() {
     setStatus('loading', 'Загрузка локаций...');
@@ -131,15 +177,17 @@ async function loadLocations() {
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
         locations = data.locations || [];
+        migrateLocations();
         renderMarkers();
-        setStatus('ok', locations.length + ' локаций');
+        setStatus('ok', locations.length + ' записей');
     } catch (err) {
-        console.error('Ошибка загрузки локаций:', err);
+        console.error('Ошибка загрузки:', err);
         setStatus('error', 'API не отвечает');
         const cached = localStorage.getItem('morion_locations');
         if (cached) {
             try {
                 locations = JSON.parse(cached);
+                migrateLocations();
                 renderMarkers();
             } catch {}
         }
@@ -169,19 +217,21 @@ async function saveLocations() {
 }
 
 // ============================================================
-//  МАРКЕРЫ
+//  МАРКЕРЫ НА КАРТЕ — только kind === 'location'
 // ============================================================
 function renderMarkers() {
     Object.values(markers).forEach(m => map.removeLayer(m));
     markers = {};
 
-    locations.forEach(loc => {
-        const info = TYPE_INFO[loc.type] || TYPE_INFO.city;
+    const topLevel = locations.filter(l => l.kind === 'location');
+
+    topLevel.forEach(loc => {
+        const info = getTypeInfo(loc);
         const latlng = imageToLeaflet(loc.x, loc.y);
 
         const icon = L.divIcon({
             className: 'custom-marker',
-            html: `<div class="marker-icon ${info.css}">${info.icon}</div>`,
+            html: `<div class="marker-icon ${info.css || ''}">${info.icon}</div>`,
             iconSize: [38, 38],
             iconAnchor: [19, 44],
             popupAnchor: [0, -40]
@@ -221,33 +271,80 @@ function renderMarkers() {
 }
 
 function buildPopupHtml(loc) {
-    const info = TYPE_INFO[loc.type] || TYPE_INFO.city;
+    const info = getTypeInfo(loc);
+    const subCount = getChildren(loc.id, 'sublocation').length;
+    const factCount = getChildren(loc.id, 'faction').length;
+
+    let extra = '';
+    if (subCount || factCount) {
+        const parts = [];
+        if (subCount) parts.push('🏛 ' + subCount);
+        if (factCount) parts.push('⚔️ ' + factCount);
+        extra = ' · ' + parts.join(' · ');
+    }
+
     return `
         <div class="popup-header">${info.icon} ${escapeHtml(loc.name)}</div>
-        <div class="popup-body"><p>${escapeHtml(loc.short || info.label)}</p></div>
+        <div class="popup-body">
+            <p>${escapeHtml(loc.short || info.label)}${extra}</p>
+        </div>
         <button class="popup-btn" data-id="${loc.id}">Подробнее →</button>
     `;
 }
 
 // ============================================================
-//  МОДАЛКА С ОПИСАНИЕМ
+//  МОДАЛКА С ВКЛАДКАМИ
 // ============================================================
-function openDetailsModal(loc) {
-    const info = TYPE_INFO[loc.type] || TYPE_INFO.city;
+function openDetailsModal(loc, activeTab) {
+    const info = getTypeInfo(loc);
     const overlay = document.getElementById('modalOverlay');
     const modal = document.getElementById('modalContent');
 
-    let linksHtml = '';
-    if (loc.links && loc.links.length) {
-        const linkBtns = loc.links.map(id => {
-            const target = locations.find(l => l.id === id);
-            if (!target) return '';
-            return `<button class="modal-link-btn" data-goto="${id}">${escapeHtml(target.name)}</button>`;
-        }).filter(Boolean).join('');
-        if (linkBtns) {
-            linksHtml = `<div class="modal-links"><div class="modal-links-title">Связанные локации</div><div class="modal-links-list">${linkBtns}</div></div>`;
-        }
+    // Определяем доступные вкладки
+    const isFaction = loc.kind === 'faction';
+    const hasSub = loc.kind === 'location'; // подлокации бывают только у локаций на карте
+    const hasFactions = loc.kind === 'location' || loc.kind === 'sublocation';
+
+    const subCount = hasSub ? getChildren(loc.id, 'sublocation').length : 0;
+    const factCount = hasFactions ? getChildren(loc.id, 'faction').length : 0;
+    const linksCount = (loc.links || []).length;
+
+    // По умолчанию активная — первая доступная
+    if (!activeTab) activeTab = 'desc';
+
+    // Хлебные крошки
+    const path = getPath(loc);
+    let breadcrumbsHtml = '';
+    if (path.length > 1) {
+        breadcrumbsHtml = '<div class="breadcrumbs">';
+        path.forEach((node, i) => {
+            if (i < path.length - 1) {
+                breadcrumbsHtml += `<button onclick="openDetailsModal(findById('${node.id}'))">${escapeHtml(node.name)}</button>`;
+                breadcrumbsHtml += '<span class="sep">→</span>';
+            } else {
+                breadcrumbsHtml += `<span class="current">${escapeHtml(node.name)}</span>`;
+            }
+        });
+        breadcrumbsHtml += '</div>';
     }
+
+    // Вкладки
+    let tabsHtml = '<div class="modal-tabs">';
+    tabsHtml += `<button class="modal-tab ${activeTab === 'desc' ? 'active' : ''}" data-tab="desc">📜 Описание</button>`;
+    if (hasSub) {
+        tabsHtml += `<button class="modal-tab ${activeTab === 'sub' ? 'active' : ''}" data-tab="sub">🏛 Районы${subCount ? ` <span class="tab-count">${subCount}</span>` : ''}</button>`;
+    }
+    if (hasFactions) {
+        tabsHtml += `<button class="modal-tab ${activeTab === 'fac' ? 'active' : ''}" data-tab="fac">⚔️ Фракции${factCount ? ` <span class="tab-count">${factCount}</span>` : ''}</button>`;
+    }
+    tabsHtml += `<button class="modal-tab ${activeTab === 'links' ? 'active' : ''}" data-tab="links">🔗 Связи${linksCount ? ` <span class="tab-count">${linksCount}</span>` : ''}</button>`;
+    tabsHtml += '</div>';
+
+    // Содержимое вкладок
+    const descHtml = buildDescTab(loc, info);
+    const subHtml = hasSub ? buildSubTab(loc) : '';
+    const facHtml = hasFactions ? buildFacTab(loc) : '';
+    const linksHtml = buildLinksTab(loc);
 
     modal.innerHTML = `
         <div class="modal-header">
@@ -257,25 +354,157 @@ function openDetailsModal(loc) {
             </div>
             <button class="modal-close" onclick="closeModal()">✕</button>
         </div>
+        ${breadcrumbsHtml}
+        ${tabsHtml}
         <div class="modal-body">
-            ${loc.image ? `<img class="modal-image" src="${escapeHtml(loc.image)}" alt="${escapeHtml(loc.name)}">` : ''}
-            <div class="modal-description">${formatDescription(loc.description || loc.short || '')}</div>
-            ${linksHtml}
-            ${isEditing ? `<div class="form-actions" style="margin-top:24px;">
-                <button class="form-btn secondary" onclick="editFromDetails('${loc.id}')">✏️ Редактировать</button>
-            </div>` : ''}
+            <div class="tab-panel ${activeTab === 'desc' ? 'active' : ''}" data-panel="desc">${descHtml}</div>
+            ${hasSub ? `<div class="tab-panel ${activeTab === 'sub' ? 'active' : ''}" data-panel="sub">${subHtml}</div>` : ''}
+            ${hasFactions ? `<div class="tab-panel ${activeTab === 'fac' ? 'active' : ''}" data-panel="fac">${facHtml}</div>` : ''}
+            <div class="tab-panel ${activeTab === 'links' ? 'active' : ''}" data-panel="links">${linksHtml}</div>
         </div>
     `;
 
-    modal.querySelectorAll('[data-goto]').forEach(btn => {
-        btn.onclick = () => {
-            const targetId = btn.getAttribute('data-goto');
-            const target = locations.find(l => l.id === targetId);
-            if (target) { closeModal(); openDetailsModal(target); }
+    // Обработчики вкладок
+    modal.querySelectorAll('.modal-tab').forEach(tab => {
+        tab.onclick = () => {
+            const target = tab.getAttribute('data-tab');
+            modal.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+            modal.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            const panel = modal.querySelector(`[data-panel="${target}"]`);
+            if (panel) panel.classList.add('active');
         };
     });
 
     overlay.classList.add('open');
+}
+
+// --- Описание ---
+function buildDescTab(loc, info) {
+    let html = '';
+    if (loc.image) {
+        html += `<img class="modal-image" src="${escapeHtml(loc.image)}" alt="${escapeHtml(loc.name)}">`;
+    }
+    html += `<div class="modal-description">${formatDescription(loc.description || loc.short || 'Пустое описание.')}</div>`;
+
+    // Доп. поля фракции
+    if (loc.kind === 'faction') {
+        const metaItems = [];
+        if (loc.leader) metaItems.push(`<div class="faction-meta-item"><span class="meta-label">Руководитель</span><span class="meta-value">${escapeHtml(loc.leader)}</span></div>`);
+        if (loc.members) metaItems.push(`<div class="faction-meta-item"><span class="meta-label">Состав</span><span class="meta-value">${escapeHtml(loc.members)}</span></div>`);
+        if (loc.goals) metaItems.push(`<div class="faction-meta-item"><span class="meta-label">Цели</span><span class="meta-value">${escapeHtml(loc.goals)}</span></div>`);
+        if (metaItems.length) {
+            html += `<div class="faction-meta">${metaItems.join('')}</div>`;
+        }
+    }
+
+    if (isEditing) {
+        html += `<div class="form-actions" style="margin-top:24px;">
+            <button class="form-btn secondary" onclick="editFromDetails('${loc.id}')">✏️ Редактировать</button>
+        </div>`;
+    }
+    return html;
+}
+
+// --- Подлокации ---
+function buildSubTab(loc) {
+    const subs = getChildren(loc.id, 'sublocation');
+
+    let html = '';
+    if (!subs.length) {
+        html += `<div class="empty-state"><span class="empty-icon">🏛</span>Внутри этой локации пока нет районов или зданий.</div>`;
+    } else {
+        html += '<div class="items-list">';
+        subs.forEach(sub => {
+            const info = getTypeInfo(sub);
+            html += `
+                <div class="item-card" onclick="openDetailsModal(findById('${sub.id}'))">
+                    <div class="item-icon">${info.icon}</div>
+                    <div class="item-content">
+                        <div class="item-name">${escapeHtml(sub.name)}</div>
+                        <div class="item-subtitle">${info.label}</div>
+                        ${sub.short ? `<div class="item-short">${escapeHtml(sub.short)}</div>` : ''}
+                    </div>
+                    <div class="item-arrow">›</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    if (isEditing) {
+        html += `<button class="add-item-btn" onclick="addSublocationTo('${loc.id}')">＋ Добавить район / здание</button>`;
+    }
+
+    return html;
+}
+
+// --- Фракции ---
+function buildFacTab(loc) {
+    const facs = getChildren(loc.id, 'faction');
+
+    let html = '';
+    if (!facs.length) {
+        html += `<div class="empty-state"><span class="empty-icon">⚔️</span>Здесь пока нет фракций.</div>`;
+    } else {
+        html += '<div class="items-list">';
+        facs.forEach(fac => {
+            const info = getTypeInfo(fac);
+            html += `
+                <div class="item-card" onclick="openDetailsModal(findById('${fac.id}'))">
+                    <div class="item-icon">${info.icon}</div>
+                    <div class="item-content">
+                        <div class="item-name">${escapeHtml(fac.name)}</div>
+                        <div class="item-subtitle">${info.label}</div>
+                        ${fac.short ? `<div class="item-short">${escapeHtml(fac.short)}</div>` : ''}
+                    </div>
+                    <div class="item-arrow">›</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    if (isEditing) {
+        html += `<button class="add-item-btn" onclick="addFactionTo('${loc.id}')">＋ Добавить фракцию</button>`;
+    }
+
+    return html;
+}
+
+// --- Связи ---
+function buildLinksTab(loc) {
+    const links = (loc.links || []).map(id => findById(id)).filter(Boolean);
+
+    let html = '';
+    if (!links.length) {
+        html += `<div class="empty-state"><span class="empty-icon">🔗</span>Связанных локаций пока нет.</div>`;
+    } else {
+        html += '<div class="items-list">';
+        links.forEach(link => {
+            const info = getTypeInfo(link);
+            html += `
+                <div class="item-card" onclick="openDetailsModal(findById('${link.id}'))">
+                    <div class="item-icon">${info.icon}</div>
+                    <div class="item-content">
+                        <div class="item-name">${escapeHtml(link.name)}</div>
+                        <div class="item-subtitle">${info.label}</div>
+                        ${link.short ? `<div class="item-short">${escapeHtml(link.short)}</div>` : ''}
+                    </div>
+                    <div class="item-arrow">›</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    if (isEditing) {
+        html += `<div class="form-actions" style="margin-top:24px; justify-content:flex-start;">
+            <button class="form-btn secondary" onclick="editFromDetails('${loc.id}')">✏️ Изменить связи</button>
+        </div>`;
+    }
+
+    return html;
 }
 
 function formatDescription(text) {
@@ -288,8 +517,38 @@ function closeModal() {
 }
 
 function editFromDetails(id) {
-    const loc = locations.find(l => l.id === id);
+    const loc = findById(id);
     if (loc) openEditModal(loc);
+}
+
+// ============================================================
+//  БЫСТРОЕ ДОБАВЛЕНИЕ ПОДЛОКАЦИИ / ФРАКЦИИ
+// ============================================================
+function addSublocationTo(parentId) {
+    const newRec = {
+        id: genId(),
+        name: '',
+        kind: 'sublocation',
+        parentId: parentId,
+        type: 'district',
+        short: '', description: '', image: '',
+        links: [], x: null, y: null
+    };
+    openEditModal(newRec, true);
+}
+
+function addFactionTo(parentId) {
+    const newRec = {
+        id: genId(),
+        name: '',
+        kind: 'faction',
+        parentId: parentId,
+        type: 'guild',
+        short: '', description: '', image: '',
+        links: [], x: null, y: null,
+        leader: '', members: '', goals: ''
+    };
+    openEditModal(newRec, true);
 }
 
 // ============================================================
@@ -396,7 +655,7 @@ function disableEditMode() {
     document.getElementById('editBtn').classList.remove('active');
     document.getElementById('editBtn').textContent = '✏️ Редактировать';
     renderMarkers();
-    setStatus('ok', locations.length + ' локаций');
+    setStatus('ok', locations.length + ' записей');
 }
 
 function onMapClick(e) {
@@ -404,13 +663,16 @@ function onMapClick(e) {
     if (e.originalEvent && e.originalEvent._dragged) return;
 
     const coords = leafletToImage(e.latlng);
-    const newLoc = {
+    const newRec = {
         id: genId(),
-        name: '', type: 'city',
+        name: '',
+        kind: 'location',
+        parentId: null,
+        type: 'city',
         x: coords.x, y: coords.y,
         short: '', description: '', image: '', links: []
     };
-    openEditModal(newLoc, true);
+    openEditModal(newRec, true);
 }
 
 // ============================================================
@@ -420,26 +682,78 @@ function openEditModal(loc, isNew = false) {
     const overlay = document.getElementById('modalOverlay');
     const modal = document.getElementById('modalContent');
 
-    const typeOptions = Object.entries(TYPE_INFO).map(([key, info]) => 
+    const isFaction = loc.kind === 'faction';
+    const isSublocation = loc.kind === 'sublocation';
+    const isLocation = loc.kind === 'location';
+
+    // Набор типов для текущей категории
+    let typesDict;
+    if (isFaction) typesDict = CONFIG.FACTION_TYPES;
+    else if (isSublocation) typesDict = CONFIG.SUBLOCATION_TYPES;
+    else typesDict = CONFIG.LOCATION_TYPES;
+
+    const typeOptions = Object.entries(typesDict).map(([key, info]) => 
         `<option value="${key}" ${loc.type === key ? 'selected' : ''}>${info.icon} ${info.label}</option>`
     ).join('');
 
+    // Селект родителя (только для новых записей)
+    let parentSelectHtml = '';
+    if (isNew && !isLocation) {
+        const possibleParents = locations.filter(l => l.kind === 'location' || l.kind === 'sublocation');
+        if (possibleParents.length) {
+            const opts = possibleParents.map(p => {
+                const info = getTypeInfo(p);
+                return `<option value="${p.id}" ${loc.parentId === p.id ? 'selected' : ''}>${info.icon} ${escapeHtml(p.name)}</option>`;
+            }).join('');
+            parentSelectHtml = `
+                <div class="form-row">
+                    <label>Где находится</label>
+                    <select id="f-parent">${opts}</select>
+                </div>
+            `;
+        }
+    }
+
+    // Связи
     const linkOptions = locations
-        .filter(l => l.id !== loc.id)
+        .filter(l => l.id !== loc.id && l.kind === 'location')
         .map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`)
         .join('');
 
     const currentLinks = (loc.links || []).map(id => {
-        const t = locations.find(l => l.id === id);
+        const t = findById(id);
         if (!t) return '';
         return `<span class="modal-link-btn" data-remove-link="${id}" style="cursor:pointer;">${escapeHtml(t.name)} ✕</span>`;
     }).join('');
 
+    // Доп. поля для фракций
+    let factionFieldsHtml = '';
+    if (isFaction) {
+        factionFieldsHtml = `
+            <div class="form-row">
+                <label>Руководитель</label>
+                <input type="text" id="f-leader" value="${escapeHtml(loc.leader || '')}" placeholder="Например: Сэр Морис">
+            </div>
+            <div class="form-row">
+                <label>Состав / численность</label>
+                <input type="text" id="f-members" value="${escapeHtml(loc.members || '')}" placeholder="Например: ~200 рыцарей">
+            </div>
+            <div class="form-row">
+                <label>Цели</label>
+                <input type="text" id="f-goals" value="${escapeHtml(loc.goals || '')}" placeholder="Например: охранять паломников">
+            </div>
+        `;
+    }
+
+    // Заголовок формы
+    const kindLabel = isNew ? 'Новая запись' : 'Редактирование';
+    const recordKindLabel = CONFIG.KIND_INFO[loc.kind] ? CONFIG.KIND_INFO[loc.kind].label : '';
+
     modal.innerHTML = `
         <div class="modal-header">
             <div class="modal-title-block">
-                <div class="modal-type">${isNew ? '➕ Новая локация' : '✏️ Редактирование'}</div>
-                <div class="modal-title">${isNew ? 'Создать точку' : escapeHtml(loc.name || 'Без названия')}</div>
+                <div class="modal-type">${isNew ? '➕' : '✏️'} ${kindLabel}</div>
+                <div class="modal-title">${isNew ? 'Создать ' + recordKindLabel.toLowerCase() : escapeHtml(loc.name || 'Без названия')}</div>
             </div>
             <button class="modal-close" onclick="closeModal()">✕</button>
         </div>
@@ -449,17 +763,19 @@ function openEditModal(loc, isNew = false) {
                 <input type="text" id="f-name" value="${escapeHtml(loc.name)}" placeholder="Например: Тирон">
             </div>
             <div class="form-row">
-                <label>Тип локации</label>
+                <label>Тип</label>
                 <select id="f-type">${typeOptions}</select>
             </div>
+            ${parentSelectHtml}
             <div class="form-row">
                 <label>Краткое описание (для попапа)</label>
                 <input type="text" id="f-short" value="${escapeHtml(loc.short)}" placeholder="Одно предложение">
             </div>
             <div class="form-row">
                 <label>Полное описание</label>
-                <textarea id="f-description" placeholder="Подробное описание локации...">${escapeHtml(loc.description)}</textarea>
+                <textarea id="f-description" placeholder="Подробное описание...">${escapeHtml(loc.description)}</textarea>
             </div>
+            ${factionFieldsHtml}
             <div class="form-row">
                 <label>Картинка (URL или загрузка)</label>
                 <input type="text" id="f-image" value="${escapeHtml(loc.image || '')}" placeholder="https://... или загрузите файл">
@@ -491,9 +807,14 @@ function openEditModal(loc, isNew = false) {
     const fFile = modal.querySelector('#f-file');
     const fAddLink = modal.querySelector('#f-add-link');
     const linksList = modal.querySelector('#links-list');
+    const fParent = modal.querySelector('#f-parent');
+    const fLeader = modal.querySelector('#f-leader');
+    const fMembers = modal.querySelector('#f-members');
+    const fGoals = modal.querySelector('#f-goals');
 
     let currentLinksArr = [...(loc.links || [])];
 
+    // Загрузка файла
     fFile.onchange = async () => {
         const file = fFile.files[0];
         if (!file) return;
@@ -535,7 +856,7 @@ function openEditModal(loc, isNew = false) {
 
     function renderLinks() {
         linksList.innerHTML = currentLinksArr.map(id => {
-            const t = locations.find(l => l.id === id);
+            const t = findById(id);
             if (!t) return '';
             return `<span class="modal-link-btn" data-remove-link="${id}" style="cursor:pointer;">${escapeHtml(t.name)} ✕</span>`;
         }).join('');
@@ -549,6 +870,7 @@ function openEditModal(loc, isNew = false) {
     }
     renderLinks();
 
+    // Сохранение
     modal.querySelector('#f-save').onclick = async () => {
         const name = fName.value.trim();
         if (!name) { alert('Введите название'); return; }
@@ -560,6 +882,17 @@ function openEditModal(loc, isNew = false) {
         loc.image = fImage.value.trim();
         loc.links = currentLinksArr;
 
+        if (isFaction) {
+            loc.leader = fLeader ? fLeader.value.trim() : '';
+            loc.members = fMembers ? fMembers.value.trim() : '';
+            loc.goals = fGoals ? fGoals.value.trim() : '';
+        }
+
+        // Если новая запись и есть выбор родителя — берём из селекта
+        if (isNew && fParent) {
+            loc.parentId = fParent.value;
+        }
+
         if (isNew) locations.push(loc);
         else {
             const idx = locations.findIndex(l => l.id === loc.id);
@@ -567,14 +900,48 @@ function openEditModal(loc, isNew = false) {
         }
 
         const ok = await saveLocations();
-        if (ok) { closeModal(); renderMarkers(); }
+        if (ok) { 
+            closeModal(); 
+            renderMarkers();
+            // Если создали подлокацию/фракцию — открываем родителя обратно
+            if (isNew && loc.parentId) {
+                const parent = findById(loc.parentId);
+                if (parent) {
+                    const tab = loc.kind === 'faction' ? 'fac' : 'sub';
+                    setTimeout(() => openDetailsModal(parent, tab), 200);
+                }
+            }
+        }
     };
 
+    // Удаление
     if (!isNew) {
         modal.querySelector('#f-delete').onclick = async () => {
-            if (!confirm('Удалить локацию "' + loc.name + '"?')) return;
-            locations = locations.filter(l => l.id !== loc.id);
-            locations.forEach(l => { if (l.links) l.links = l.links.filter(id => id !== loc.id); });
+            const children = locations.filter(l => l.parentId === loc.id);
+            let confirmMsg = 'Удалить "' + loc.name + '"?';
+            if (children.length) {
+                confirmMsg += `\n\nУ неё есть ${children.length} вложенных записей — они тоже будут удалены.`;
+            }
+            if (!confirm(confirmMsg)) return;
+
+            // Удаляем саму запись + всех потомков
+            const toDelete = new Set([loc.id]);
+            let changed = true;
+            while (changed) {
+                changed = false;
+                locations.forEach(l => {
+                    if (l.parentId && toDelete.has(l.parentId) && !toDelete.has(l.id)) {
+                        toDelete.add(l.id);
+                        changed = true;
+                    }
+                });
+            }
+            locations = locations.filter(l => !toDelete.has(l.id));
+            // Чистим связи
+            locations.forEach(l => {
+                if (l.links) l.links = l.links.filter(id => !toDelete.has(id));
+            });
+
             const ok = await saveLocations();
             if (ok) { closeModal(); renderMarkers(); }
         };
@@ -614,7 +981,6 @@ document.addEventListener('keydown', (e) => {
     setStatus('loading', 'Загрузка карты...');
     initMap();
 
-    // Применяем вид несколько раз — гарантированно после измерения контейнера
     applyStartView(false);
     setTimeout(() => applyStartView(false), 100);
     setTimeout(() => applyStartView(false), 400);
