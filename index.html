@@ -293,32 +293,42 @@ body.editing .custom-marker { cursor: move; }
 
 <script>
 /* ============================================================
-    КОНФИГ — ЖЁСТКИЕ ЗНАЧЕНИЯ
+    КОНФИГ
    ============================================================ */
 const CONFIG = {
     IMAGE_WIDTH: 18432,
     IMAGE_HEIGHT: 12288,
+    TILE_SIZE: 256,
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
-    MAX_NATIVE_ZOOM: 6,
+    MAX_NATIVE_ZOOM: 6,        // сколько уровней тайлов нарезано
 
     // === СТАРТОВЫЙ ВИД ===
-    // Центр карты в ПРОЦЕНТАХ от левого-верхнего угла.
-    // X = 50 — центр по горизонтали
-    // Y = 45 — чуть выше центра (там Тирон)
+    // Центр карты в ПРОЦЕНТАХ от левого-верхнего угла:
+    // X: 0 = левый край, 100 = правый
+    // Y: 0 = верхний край, 100 = нижний
     START_X_PERCENT: 50,
-    START_Y_PERCENT: 45,
+    START_Y_PERCENT: 50,
 
-    // Зум. Больше = крупнее.
-    // 3   — видно много регионов
-    // 3.5 — средне
-    // 4   — крупный план (замок Тирон)
-    // 5   — очень крупный план (только Тирон)
+    // Стартовый зум. Больше = крупнее.
+    // 2 — видна почти вся карта
+    // 3 — виден центр
+    // 4 — крупный план Тирона
+    // 5 — очень крупно
     START_ZOOM: 4,
 
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
     STORAGE_PIN: 'morion_pin'
 };
+
+// ВАЖНО: правильный zoomLevel для CRS.Simple
+// Leaflet использует scale = 2^zoom, и мир становится 1:1
+// только на zoomLevel = ceil(log2(max(W,H) / tileSize))
+const ZOOM_LEVEL = Math.ceil(Math.log2(Math.max(CONFIG.IMAGE_WIDTH, CONFIG.IMAGE_HEIGHT) / CONFIG.TILE_SIZE));
+
+// Размер карты в latlng-координатах (в CRS.Simple)
+const WORLD_W = CONFIG.IMAGE_WIDTH / Math.pow(2, ZOOM_LEVEL);
+const WORLD_H = CONFIG.IMAGE_HEIGHT / Math.pow(2, ZOOM_LEVEL);
 
 const TYPE_INFO = {
     capital:  { icon: '🏰', label: 'Столица',          css: 'marker-capital' },
@@ -335,12 +345,10 @@ const TYPE_INFO = {
 };
 
 let map;
-let mapBounds = null;
 let locations = [];
 let markers = {};
 let isEditing = false;
 let currentPin = '';
-let viewApplied = false;
 
 /* ============================================================
     УТИЛИТЫ
@@ -357,44 +365,42 @@ function genId() {
     return 'loc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 }
 
+/* ============================================================
+    КОНВЕРТАЦИЯ КООРДИНАТ — БЕЗ unproject, ПРЯМЫЕ ФОРМУЛЫ
+   ============================================================ */
 function imageToLeaflet(x, y) {
-    return map.unproject([x, y], CONFIG.MAX_NATIVE_ZOOM);
+    // x: 0..W (пиксели от левого края)
+    // y: 0..H (пиксели от верхнего края)
+    // lat: -y / 2^zoomLevel (0 сверху, отрицательный снизу)
+    // lng: x / 2^zoomLevel
+    const scale = Math.pow(2, ZOOM_LEVEL);
+    return L.latLng(-y / scale, x / scale);
 }
 function leafletToImage(latlng) {
-    const p = map.project(latlng, CONFIG.MAX_NATIVE_ZOOM);
-    return { x: Math.round(p.x), y: Math.round(p.y) };
+    const scale = Math.pow(2, ZOOM_LEVEL);
+    return {
+        x: Math.round(latlng.lng * scale),
+        y: Math.round(-latlng.lat * scale)
+    };
 }
 
 /* ============================================================
-    СТАРТОВЫЙ ВИД — БЕЗ unproject, ПРЯМЫЕ КООРДИНАТЫ
+    СТАРТОВЫЙ ВИД
    ============================================================ */
 function applyStartView(animate) {
     const W = CONFIG.IMAGE_WIDTH;
     const H = CONFIG.IMAGE_HEIGHT;
-    const maxZoom = CONFIG.MAX_NATIVE_ZOOM;
 
-    // Пиксели от левого-верхнего угла
     const px = CONFIG.START_X_PERCENT / 100 * W;
     const py = CONFIG.START_Y_PERCENT / 100 * H;
 
-    // В координатах Leaflet CRS.Simple центр — это lng = x, lat = H - y
-    // НО мы используем unproject для корректного масштабирования
-    const center = map.unproject([px, py], maxZoom);
+    const center = imageToLeaflet(px, py);
+    const zoom = CONFIG.START_ZOOM;
 
-    // Принудительно проверяем размер контейнера
-    map.invalidateSize();
-
-    // Устанавливаем вид одним махом — без анимации, жёстко
-    map.setView(center, CONFIG.START_ZOOM, { animate: !!animate });
-
-    viewApplied = true;
-    console.log('[applyStartView]', 
-        'px =', px, 'py =', py,
-        '| latlng =', center.lat.toFixed(2), center.lng.toFixed(2),
-        '| zoom =', CONFIG.START_ZOOM,
-        '| actual zoom =', map.getZoom(),
-        '| container =', map.getSize().x + 'x' + map.getSize().y
-    );
+    map.setView(center, zoom, { animate: !!animate });
+    console.log('[applyStartView] px=' + px + ' py=' + py +
+        ' | latlng=(' + center.lat.toFixed(2) + ',' + center.lng.toFixed(2) + ')' +
+        ' | zoom=' + map.getZoom());
 }
 
 /* ============================================================
@@ -403,32 +409,31 @@ function applyStartView(animate) {
 function initMap() {
     const W = CONFIG.IMAGE_WIDTH;
     const H = CONFIG.IMAGE_HEIGHT;
-    const maxZoom = CONFIG.MAX_NATIVE_ZOOM;
+
+    console.log('W=' + W + ' H=' + H + ' ZOOM_LEVEL=' + ZOOM_LEVEL + ' WORLD_W=' + WORLD_W + ' WORLD_H=' + WORLD_H);
 
     map = L.map('map', {
         crs: L.CRS.Simple,
         minZoom: 0,
-        maxZoom: maxZoom,
+        maxZoom: ZOOM_LEVEL,
         zoomSnap: 0.25,
         zoomDelta: 0.5,
         attributionControl: false,
-        zoomControl: false,
-        // Отключаем автоцентрирование к [0,0]
-        center: [0, 0],
-        zoom: 0
+        zoomControl: false
     });
 
-    const southWest = map.unproject([0, H], maxZoom);
-    const northEast = map.unproject([W, 0], maxZoom);
-    mapBounds = L.latLngBounds(southWest, northEast);
+    // Границы карты в latlng-координатах
+    const sw = L.latLng(-WORLD_H, 0);   // юго-запад (низ, лево)
+    const ne = L.latLng(0, WORLD_W);    // северо-восток (верх, право)
+    const bounds = L.latLngBounds(sw, ne);
 
     const tileLayer = L.tileLayer(CONFIG.TILES_PATH, {
-        tileSize: 256,
+        tileSize: CONFIG.TILE_SIZE,
         tms: true,
         noWrap: true,
-        bounds: mapBounds,
+        bounds: bounds,
         minNativeZoom: 0,
-        maxNativeZoom: maxZoom,
+        maxNativeZoom: CONFIG.MAX_NATIVE_ZOOM,
         keepBuffer: 2,
         updateWhenIdle: false
     });
@@ -439,11 +444,9 @@ function initMap() {
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.on('click', onMapClick);
 
-    window.addEventListener('resize', () => {
-        map.invalidateSize();
-    });
+    window.addEventListener('resize', () => map.invalidateSize());
 
-    console.log('Карта инициализирована. World:', W, '×', H, '| Max zoom:', maxZoom);
+    console.log('Карта инициализирована.');
 }
 
 /* ============================================================
@@ -930,24 +933,17 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ============================================================
-    СТАРТ — с несколькими попытками установки вида
+    СТАРТ
    ============================================================ */
 (function() {
     setStatus('loading', 'Загрузка карты...');
     initMap();
 
-    // Применяем вид НЕСКОЛЬКО раз, чтобы гарантированно сработало
-    // после того, как браузер правильно измерит контейнер
+    // Применяем вид несколько раз — гарантированно после измерения контейнера
     applyStartView(false);
-    setTimeout(() => applyStartView(false), 50);
-    setTimeout(() => applyStartView(false), 200);
-    setTimeout(() => applyStartView(false), 600);
-    setTimeout(() => applyStartView(false), 1500);
-
-    // Также после полной загрузки страницы
-    window.addEventListener('load', () => {
-        setTimeout(() => applyStartView(false), 100);
-    });
+    setTimeout(() => applyStartView(false), 100);
+    setTimeout(() => applyStartView(false), 400);
+    setTimeout(() => applyStartView(false), 1000);
 
     loadLocations();
 })();
