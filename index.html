@@ -293,7 +293,7 @@ body.editing .custom-marker { cursor: move; }
 
 <script>
 /* ============================================================
-    КОНФИГ — ЖЁСТКИЕ ЗНАЧЕНИЯ, БЕЗ АДАПТИВНОСТИ
+    КОНФИГ — ЖЁСТКИЕ ЗНАЧЕНИЯ
    ============================================================ */
 const CONFIG = {
     IMAGE_WIDTH: 18432,
@@ -302,18 +302,18 @@ const CONFIG = {
     MAX_NATIVE_ZOOM: 6,
 
     // === СТАРТОВЫЙ ВИД ===
-    // Центр карты в ПРОЦЕНТАХ от левого верхнего угла.
-    // X = 50 — точно по горизонтали по центру
-    // Y = 52 — чуть ниже середины, чтобы Тирон оказался по центру экрана
-    START_CENTER_X_PERCENT: 50,
-    START_CENTER_Y_PERCENT: 52,
+    // Центр карты в ПРОЦЕНТАХ от левого-верхнего угла.
+    // X = 50 — центр по горизонтали
+    // Y = 45 — чуть выше центра (там Тирон)
+    START_X_PERCENT: 50,
+    START_Y_PERCENT: 45,
 
-    // Стартовый зум:
-    // 2   — мелко, видно много карты
-    // 2.5 — средне
-    // 3   — крупно, Тирон в центре (по скриншоту)
-    // 3.5 — очень крупно, видно только Тирон
-    START_ZOOM: 3,
+    // Зум. Больше = крупнее.
+    // 3   — видно много регионов
+    // 3.5 — средне
+    // 4   — крупный план (замок Тирон)
+    // 5   — очень крупный план (только Тирон)
+    START_ZOOM: 4,
 
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
@@ -340,6 +340,7 @@ let locations = [];
 let markers = {};
 let isEditing = false;
 let currentPin = '';
+let viewApplied = false;
 
 /* ============================================================
     УТИЛИТЫ
@@ -365,23 +366,35 @@ function leafletToImage(latlng) {
 }
 
 /* ============================================================
-    ЖЁСТКИЙ СТАРТОВЫЙ ВИД
+    СТАРТОВЫЙ ВИД — БЕЗ unproject, ПРЯМЫЕ КООРДИНАТЫ
    ============================================================ */
 function applyStartView(animate) {
     const W = CONFIG.IMAGE_WIDTH;
     const H = CONFIG.IMAGE_HEIGHT;
     const maxZoom = CONFIG.MAX_NATIVE_ZOOM;
 
-    // Пиксели оригинала
-    const px = CONFIG.START_CENTER_X_PERCENT / 100 * W;
-    const py = CONFIG.START_CENTER_Y_PERCENT / 100 * H;
+    // Пиксели от левого-верхнего угла
+    const px = CONFIG.START_X_PERCENT / 100 * W;
+    const py = CONFIG.START_Y_PERCENT / 100 * H;
 
-    // В координаты Leaflet
+    // В координатах Leaflet CRS.Simple центр — это lng = x, lat = H - y
+    // НО мы используем unproject для корректного масштабирования
     const center = map.unproject([px, py], maxZoom);
-    const zoom = CONFIG.START_ZOOM;
 
-    map.setView(center, zoom, { animate: !!animate });
-    console.log('View applied. Center:', px + ',' + py, '| Zoom:', zoom);
+    // Принудительно проверяем размер контейнера
+    map.invalidateSize();
+
+    // Устанавливаем вид одним махом — без анимации, жёстко
+    map.setView(center, CONFIG.START_ZOOM, { animate: !!animate });
+
+    viewApplied = true;
+    console.log('[applyStartView]', 
+        'px =', px, 'py =', py,
+        '| latlng =', center.lat.toFixed(2), center.lng.toFixed(2),
+        '| zoom =', CONFIG.START_ZOOM,
+        '| actual zoom =', map.getZoom(),
+        '| container =', map.getSize().x + 'x' + map.getSize().y
+    );
 }
 
 /* ============================================================
@@ -399,7 +412,10 @@ function initMap() {
         zoomSnap: 0.25,
         zoomDelta: 0.5,
         attributionControl: false,
-        zoomControl: false
+        zoomControl: false,
+        // Отключаем автоцентрирование к [0,0]
+        center: [0, 0],
+        zoom: 0
     });
 
     const southWest = map.unproject([0, H], maxZoom);
@@ -422,6 +438,10 @@ function initMap() {
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.on('click', onMapClick);
+
+    window.addEventListener('resize', () => {
+        map.invalidateSize();
+    });
 
     console.log('Карта инициализирована. World:', W, '×', H, '| Max zoom:', maxZoom);
 }
@@ -910,20 +930,26 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ============================================================
-    СТАРТ — жёсткая последовательность
+    СТАРТ — с несколькими попытками установки вида
    ============================================================ */
-(async function() {
-    try {
-        setStatus('loading', 'Загрузка карты...');
-        initMap();
-        // Ждём, пока браузер отрисует контейнер, чтобы Leaflet знал размеры
-        await new Promise(r => setTimeout(r, 50));
-        applyStartView(false);
-        await loadLocations();
-    } catch (err) {
-        console.error(err);
-        setStatus('error', err.message);
-    }
+(function() {
+    setStatus('loading', 'Загрузка карты...');
+    initMap();
+
+    // Применяем вид НЕСКОЛЬКО раз, чтобы гарантированно сработало
+    // после того, как браузер правильно измерит контейнер
+    applyStartView(false);
+    setTimeout(() => applyStartView(false), 50);
+    setTimeout(() => applyStartView(false), 200);
+    setTimeout(() => applyStartView(false), 600);
+    setTimeout(() => applyStartView(false), 1500);
+
+    // Также после полной загрузки страницы
+    window.addEventListener('load', () => {
+        setTimeout(() => applyStartView(false), 100);
+    });
+
+    loadLocations();
 })();
 </script>
 </body>
