@@ -301,17 +301,20 @@ const CONFIG = {
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
     MAX_NATIVE_ZOOM: 6,
 
-    // === СТАРТОВЫЙ ВИД ===
-    // START_ZOOM_MODE:
-    //   'auto'  — зум подбирается под размер экрана (режим START_VIEW)
-    //   число   — фиксированный зум (например 2.75)
-    START_ZOOM_MODE: 'auto',
+    // === СТАРТОВЫЙ ВИД (ЖЁСТКО) ===
+    // Центр карты в ПРОЦЕНТАХ от левого верхнего угла.
+    // Тирон находится примерно в центре, чуть выше середины:
+    //   x: 50% — по горизонтали в центре
+    //   y: 47% — по вертикали чуть выше центра
+    START_CENTER_X_PERCENT: 50,
+    START_CENTER_Y_PERCENT: 47,
 
-    // Если START_ZOOM_MODE = 'auto':
-    //   'fit-all'      — вся карта целиком (мелкая)
-    //   'fill-width'   — заполняет по ширине (крупная) ← используется
-    //   'fill-screen'  — заполняет весь экран (максимально крупная)
-    START_VIEW: 'fill-width',
+    // Стартовый зум. Больше = крупнее.
+    // 1.5 — видно много карты
+    // 2.0 — умеренно крупно
+    // 2.5 — крупно, центр
+    // 3.0 — очень крупно, видно только Тирон
+    START_ZOOM: 2,
 
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
@@ -363,36 +366,23 @@ function leafletToImage(latlng) {
 }
 
 /* ============================================================
-    ПРИМЕНИТЬ СТАРТОВЫЙ ВИД
+    ПРИМЕНИТЬ СТАРТОВЫЙ ВИД — жёстко по координатам
    ============================================================ */
 function applyStartView(animate) {
     const W = CONFIG.IMAGE_WIDTH;
     const H = CONFIG.IMAGE_HEIGHT;
     const maxZoom = CONFIG.MAX_NATIVE_ZOOM;
-    const size = map.getSize();
-    const center = map.unproject([W / 2, H / 2], maxZoom);
 
-    let targetZoom;
+    // Центр в пикселях оригинала
+    const px = CONFIG.START_CENTER_X_PERCENT / 100 * W;
+    const py = CONFIG.START_CENTER_Y_PERCENT / 100 * H;
 
-    if (typeof CONFIG.START_ZOOM_MODE === 'number') {
-        targetZoom = CONFIG.START_ZOOM_MODE;
-    } else {
-        if (CONFIG.START_VIEW === 'fit-all') {
-            const zX = Math.log2(size.x / W) + maxZoom;
-            const zY = Math.log2(size.y / H) + maxZoom;
-            targetZoom = Math.min(zX, zY);
-        } else if (CONFIG.START_VIEW === 'fill-width') {
-            targetZoom = Math.log2(size.x / W) + maxZoom;
-        } else { // 'fill-screen'
-            const zX = Math.log2(size.x / W) + maxZoom;
-            const zY = Math.log2(size.y / H) + maxZoom;
-            targetZoom = Math.max(zX, zY);
-        }
-    }
+    // В координаты Leaflet
+    const center = map.unproject([px, py], maxZoom);
+    const zoom = CONFIG.START_ZOOM;
 
-    targetZoom = Math.min(Math.max(targetZoom, 0), maxZoom);
-    map.setView(center, targetZoom, { animate: !!animate });
-    console.log('View applied. Mode:', CONFIG.START_ZOOM_MODE, '| View:', CONFIG.START_VIEW, '| Zoom:', targetZoom);
+    map.setView(center, zoom, { animate: !!animate });
+    console.log('View applied. Center:', px + ',' + py, '| Zoom:', zoom);
 }
 
 /* ============================================================
@@ -413,7 +403,7 @@ function initMap() {
         zoomControl: false
     });
 
-    // Границы карты
+    // Границы
     const southWest = map.unproject([0, H], maxZoom);
     const northEast = map.unproject([W, 0], maxZoom);
     mapBounds = L.latLngBounds(southWest, northEast);
@@ -429,13 +419,8 @@ function initMap() {
         updateWhenIdle: false
     });
 
-    // Гасим ошибки тайлов вне карты
     tileLayer.on('tileerror', function() {});
-
     tileLayer.addTo(map);
-
-    // Стартовый вид
-    applyStartView(false);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.on('click', onMapClick);
@@ -444,7 +429,13 @@ function initMap() {
         map.invalidateSize();
     });
 
-    console.log('Карта готова. World:', W, '×', H, '| Zoom:', map.getZoom(), '| Max:', maxZoom);
+    // ВАЖНО: применяем стартовый вид после того, как контейнер отрисован
+    setTimeout(() => {
+        map.invalidateSize();
+        applyStartView(false);
+    }, 100);
+
+    console.log('Карта инициализирована. World:', W, '×', H, '| Max zoom:', maxZoom);
 }
 
 /* ============================================================
