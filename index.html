@@ -293,7 +293,7 @@ body.editing .custom-marker { cursor: move; }
 
 <script>
 /* ============================================================
-    КОНФИГ
+    КОНФИГ — ЖЁСТКИЕ ЗНАЧЕНИЯ, БЕЗ АДАПТИВНОСТИ
    ============================================================ */
 const CONFIG = {
     IMAGE_WIDTH: 18432,
@@ -301,20 +301,19 @@ const CONFIG = {
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
     MAX_NATIVE_ZOOM: 6,
 
-    // === СТАРТОВЫЙ ВИД (ЖЁСТКО) ===
+    // === СТАРТОВЫЙ ВИД ===
     // Центр карты в ПРОЦЕНТАХ от левого верхнего угла.
-    // Тирон находится примерно в центре, чуть выше середины:
-    //   x: 50% — по горизонтали в центре
-    //   y: 47% — по вертикали чуть выше центра
+    // X = 50 — точно по горизонтали по центру
+    // Y = 52 — чуть ниже середины, чтобы Тирон оказался по центру экрана
     START_CENTER_X_PERCENT: 50,
-    START_CENTER_Y_PERCENT: 47,
+    START_CENTER_Y_PERCENT: 52,
 
-    // Стартовый зум. Больше = крупнее.
-    // 1.5 — видно много карты
-    // 2.0 — умеренно крупно
-    // 2.5 — крупно, центр
-    // 3.0 — очень крупно, видно только Тирон
-    START_ZOOM: 2,
+    // Стартовый зум:
+    // 2   — мелко, видно много карты
+    // 2.5 — средне
+    // 3   — крупно, Тирон в центре (по скриншоту)
+    // 3.5 — очень крупно, видно только Тирон
+    START_ZOOM: 3,
 
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
@@ -366,14 +365,14 @@ function leafletToImage(latlng) {
 }
 
 /* ============================================================
-    ПРИМЕНИТЬ СТАРТОВЫЙ ВИД — жёстко по координатам
+    ЖЁСТКИЙ СТАРТОВЫЙ ВИД
    ============================================================ */
 function applyStartView(animate) {
     const W = CONFIG.IMAGE_WIDTH;
     const H = CONFIG.IMAGE_HEIGHT;
     const maxZoom = CONFIG.MAX_NATIVE_ZOOM;
 
-    // Центр в пикселях оригинала
+    // Пиксели оригинала
     const px = CONFIG.START_CENTER_X_PERCENT / 100 * W;
     const py = CONFIG.START_CENTER_Y_PERCENT / 100 * H;
 
@@ -403,7 +402,6 @@ function initMap() {
         zoomControl: false
     });
 
-    // Границы
     const southWest = map.unproject([0, H], maxZoom);
     const northEast = map.unproject([W, 0], maxZoom);
     mapBounds = L.latLngBounds(southWest, northEast);
@@ -424,16 +422,6 @@ function initMap() {
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.on('click', onMapClick);
-
-    window.addEventListener('resize', () => {
-        map.invalidateSize();
-    });
-
-    // ВАЖНО: применяем стартовый вид после того, как контейнер отрисован
-    setTimeout(() => {
-        map.invalidateSize();
-        applyStartView(false);
-    }, 100);
 
     console.log('Карта инициализирована. World:', W, '×', H, '| Max zoom:', maxZoom);
 }
@@ -922,12 +910,15 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ============================================================
-    СТАРТ
+    СТАРТ — жёсткая последовательность
    ============================================================ */
 (async function() {
     try {
         setStatus('loading', 'Загрузка карты...');
         initMap();
+        // Ждём, пока браузер отрисует контейнер, чтобы Leaflet знал размеры
+        await new Promise(r => setTimeout(r, 50));
+        applyStartView(false);
         await loadLocations();
     } catch (err) {
         console.error(err);
