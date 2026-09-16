@@ -301,7 +301,8 @@ const CONFIG = {
     IMAGE_HEIGHT: 12288,
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
     MAX_NATIVE_ZOOM: 6,
-    MAX_ZOOM: 7,
+    MIN_ZOOM: -7,
+    MAX_ZOOM: 8,
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
     STORAGE_PIN: 'morion_pin'
@@ -347,8 +348,6 @@ function genId() {
 
 /* ============================================================
     КОНВЕРТАЦИЯ КООРДИНАТ
-    imageXY — от ЛЕВОГО ВЕРХНЕГО угла картинки (0..W, 0..H)
-    Leaflet CRS.Simple — [lat, lng], где lng = x, lat = H - y
    ============================================================ */
 function imageToLeaflet(x, y) {
     return [CONFIG.IMAGE_HEIGHT - y, x];
@@ -366,44 +365,48 @@ function leafletToImage(latlng) {
 function initMap() {
     const W = CONFIG.IMAGE_WIDTH;
     const H = CONFIG.IMAGE_HEIGHT;
-    const bounds = [[0, 0], [H, W]];
+    const bounds = L.latLngBounds([[0, 0], [H, W]]);
 
-    // Устанавливаем центр мира в центр карты через CRS.Simple + кастомный origin
-    // Для этого используется L.CRS.Simple с преобразованием LatLng по умолчанию
     map = L.map('map', {
         crs: L.CRS.Simple,
-        minZoom: 0,
+        minZoom: CONFIG.MIN_ZOOM,
         maxZoom: CONFIG.MAX_ZOOM,
         zoomSnap: 0.25,
         zoomDelta: 0.5,
         attributionControl: false,
         zoomControl: false,
-        maxBounds: [[-H, -W], [H * 2, W * 2]],  // разрешаем смотреть чуть за карту
-        maxBoundsViscosity: 0.7
+        // Жёстко ограничиваем карту её реальными границами,
+        // чтобы Leaflet не запрашивал тайлы за пределами
+        maxBounds: bounds,
+        maxBoundsViscosity: 1.0
     });
 
     const tileLayer = L.tileLayer(CONFIG.TILES_PATH, {
         tileSize: 256,
         noWrap: true,
-        bounds: L.latLngBounds([[0, 0], [H, W]]),
+        bounds: bounds,
         minNativeZoom: 0,
         maxNativeZoom: CONFIG.MAX_NATIVE_ZOOM,
-        minZoom: 0,
+        minZoom: CONFIG.MIN_ZOOM,
         maxZoom: CONFIG.MAX_ZOOM,
         tms: false,
         keepBuffer: 2,
-        updateWhenIdle: false,
-        updateWhenZooming: false
+        updateWhenIdle: false
     });
 
-    // Логируем, какие тайлы грузятся (для отладки)
-    tileLayer.on('tileerror', (e) => {
-        // Не спамим консоль
+    // Показываем в консоли, какие тайлы запрашиваются (для отладки)
+    tileLayer.on('tileloadstart', (e) => {
+        // Логируем только первый тайл каждого zoom для диагностики
+        if (!window._loggedZooms) window._loggedZooms = new Set();
+        if (!window._loggedZooms.has(e.coords.z)) {
+            window._loggedZooms.add(e.coords.z);
+            console.log(`[Zoom ${e.coords.z}] URL: ${e.tile.src}`);
+        }
     });
 
     tileLayer.addTo(map);
 
-    // fitBounds подберёт правильный зум для показа всей карты
+    // Подгоняем вид так, чтобы вся карта была видна
     map.fitBounds(bounds);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -411,7 +414,7 @@ function initMap() {
     map.on('click', onMapClick);
     window.addEventListener('resize', () => map.invalidateSize());
 
-    console.log('Карта инициализирована:', { W, H, nativeZoom: CONFIG.MAX_NATIVE_ZOOM });
+    console.log('Карта инициализирована. W×H:', W, '×', H, '| Zoom:', map.getZoom(), '| Min/Max:', CONFIG.MIN_ZOOM, '/', CONFIG.MAX_ZOOM);
 }
 
 /* ============================================================
