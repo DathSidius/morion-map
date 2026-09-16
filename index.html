@@ -301,11 +301,11 @@ const CONFIG = {
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
     MAX_NATIVE_ZOOM: 6,
 
-    // Стартовое увеличение карты после fitBounds.
-    // 0 — карта влезает целиком, с полями по бокам.
-    // 0.5 — карта чуть крупнее, крайние части чуть за экраном (можно прокрутить).
-    // 1 — заметно крупнее, придётся таскать мышью, чтобы увидеть края.
-    ZOOM_START_BOOST: 0.5,
+    // Режим стартового вида и кнопки "Обзор":
+    //  'fit-all'      — вся карта целиком, с полями по бокам (карта мелкая)
+    //  'fill-width'   — заполняет по ширине, верх/низ обрезаны (карта крупная) ← используем это
+    //  'fill-screen'  — заполняет весь экран по обеим осям
+    START_VIEW: 'fill-width',
 
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
@@ -357,6 +357,40 @@ function leafletToImage(latlng) {
 }
 
 /* ============================================================
+    ПРИМЕНИТЬ СТАРТОВЫЙ ВИД
+   ============================================================ */
+function applyStartView(animate) {
+    const W = CONFIG.IMAGE_WIDTH;
+    const H = CONFIG.IMAGE_HEIGHT;
+    const maxZoom = CONFIG.MAX_NATIVE_ZOOM;
+    const size = map.getSize();
+    const center = map.unproject([W / 2, H / 2], maxZoom);
+
+    let targetZoom;
+
+    if (CONFIG.START_VIEW === 'fit-all') {
+        // Вписать всю карту — берём меньший зум
+        const zX = Math.log2(size.x / W) + maxZoom;
+        const zY = Math.log2(size.y / H) + maxZoom;
+        targetZoom = Math.min(zX, zY);
+    } else if (CONFIG.START_VIEW === 'fill-width') {
+        // Заполнить по ширине — берём зум по ширине
+        targetZoom = Math.log2(size.x / W) + maxZoom;
+    } else { // 'fill-screen'
+        // Заполнить весь экран — берём больший из двух
+        const zX = Math.log2(size.x / W) + maxZoom;
+        const zY = Math.log2(size.y / H) + maxZoom;
+        targetZoom = Math.max(zX, zY);
+    }
+
+    // Ограничиваем зум
+    targetZoom = Math.min(Math.max(targetZoom, 0), maxZoom);
+
+    map.setView(center, targetZoom, { animate: !!animate });
+    console.log('View applied. Mode:', CONFIG.START_VIEW, '| Zoom:', targetZoom);
+}
+
+/* ============================================================
     ИНИЦИАЛИЗАЦИЯ КАРТЫ
    ============================================================ */
 function initMap() {
@@ -374,12 +408,12 @@ function initMap() {
         zoomControl: false
     });
 
-    // Границы карты в координатах Leaflet
+    // Границы карты
     const southWest = map.unproject([0, H], maxZoom);
     const northEast = map.unproject([W, 0], maxZoom);
     mapBounds = L.latLngBounds(southWest, northEast);
 
-    L.tileLayer(CONFIG.TILES_PATH, {
+    const tileLayer = L.tileLayer(CONFIG.TILES_PATH, {
         tileSize: 256,
         tms: true,
         noWrap: true,
@@ -388,21 +422,23 @@ function initMap() {
         maxNativeZoom: maxZoom,
         keepBuffer: 2,
         updateWhenIdle: false
-    }).addTo(map);
+    });
 
-    // Вписываем карту целиком
-    map.fitBounds(mapBounds);
+    // Гасим ошибки тайлов вне карты, чтобы не спамить в Console
+    tileLayer.on('tileerror', function() {});
 
-    // Небольшое увеличение, чтобы карта не казалась мелкой
-    if (CONFIG.ZOOM_START_BOOST > 0) {
-        const z = map.getZoom();
-        const target = Math.min(z + CONFIG.ZOOM_START_BOOST, maxZoom);
-        map.setZoom(target);
-    }
+    tileLayer.addTo(map);
+
+    // Устанавливаем стартовый вид
+    applyStartView(false);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.on('click', onMapClick);
-    window.addEventListener('resize', () => map.invalidateSize());
+
+    // При ресайзе окна — пересчитываем вид, если карта ещё в стартовом положении
+    window.addEventListener('resize', () => {
+        map.invalidateSize();
+    });
 
     console.log('Карта готова. World:', W, '×', H, '| Zoom:', map.getZoom(), '| Max:', maxZoom);
 }
@@ -879,12 +915,8 @@ document.getElementById('editBtn').onclick = () => {
 };
 
 document.getElementById('resetViewBtn').onclick = () => {
-    map.fitBounds(mapBounds);
-    if (CONFIG.ZOOM_START_BOOST > 0) {
-        const z = map.getZoom();
-        const target = Math.min(z + CONFIG.ZOOM_START_BOOST, CONFIG.MAX_NATIVE_ZOOM);
-        map.setZoom(target);
-    }
+    // Возврат к стартовому виду — плавно
+    applyStartView(true);
 };
 
 document.getElementById('modalOverlay').onclick = (e) => {
