@@ -193,7 +193,6 @@ html, body {
     font-family: var(--body-font); font-size: 18px; line-height: 1.7;
     color: var(--ink-soft); white-space: pre-wrap;
 }
-.modal-description p { margin-bottom: 12px; }
 .modal-links { margin-top: 24px; padding-top: 20px; border-top: 1px dashed var(--border); }
 .modal-links-title {
     font-family: var(--heading-font); font-size: 13px; font-weight: 700;
@@ -300,14 +299,11 @@ const CONFIG = {
     IMAGE_WIDTH: 18432,
     IMAGE_HEIGHT: 12288,
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
-    MIN_ZOOM: 0,
-    MAX_ZOOM: 8,
     MAX_NATIVE_ZOOM: 6,
+    MAX_ZOOM: 8,
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
-    STORAGE_PIN: 'morion_pin',
-    // Прозрачный 1×1 PNG — для подстановки вместо отсутствующих тайлов
-    BLANK_TILE: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+    STORAGE_PIN: 'morion_pin'
 };
 
 const TYPE_INFO = {
@@ -366,69 +362,46 @@ function initMap() {
     const H = CONFIG.IMAGE_HEIGHT;
     const mapBounds = L.latLngBounds([[0, 0], [H, W]]);
 
-    // Вычисляем координаты тайлов, выходящие за пределы карты
-    const maxTileX = Math.ceil(W / 256);  // 72
-    const maxTileY = Math.ceil(H / 256);  // 48
-
     map = L.map('map', {
         crs: L.CRS.Simple,
-        minZoom: CONFIG.MIN_ZOOM,
+        minZoom: 0,
         maxZoom: CONFIG.MAX_ZOOM,
         zoomSnap: 0.25,
         zoomDelta: 0.5,
         attributionControl: false,
         zoomControl: false,
         maxBounds: mapBounds,
-        maxBoundsViscosity: 1.0
+        maxBoundsViscosity: 0.8
     });
 
-    // === КАСТОМНЫЙ TILE LAYER ===
-    // Перехватываем запросы и заменяем тайлы за пределами карты
-    // на прозрачную картинку — чтобы браузер не спамил 404-ми
-    const SafeTileLayer = L.TileLayer.extend({
-        getTileUrl: function(coords) {
-            // Отсекаем всё, что за пределами 0..maxTile
-            if (coords.x < 0 || coords.y < 0 || coords.x >= maxTileX || coords.y >= maxTileY) {
-                return CONFIG.BLANK_TILE;
-            }
-            // Всё, что выше nativeZoom (6) — отдаём тайл с nativeZoom
-            let z = coords.z;
-            let x = coords.x;
-            let y = coords.y;
-            if (z > CONFIG.MAX_NATIVE_ZOOM) {
-                const diff = z - CONFIG.MAX_NATIVE_ZOOM;
-                x = Math.floor(x / Math.pow(2, diff));
-                y = Math.floor(y / Math.pow(2, diff));
-                z = CONFIG.MAX_NATIVE_ZOOM;
-            }
-            return CONFIG.TILES_PATH
-                .replace('{z}', z)
-                .replace('{x}', x)
-                .replace('{y}', y);
-        }
-    });
-
-    const tileLayer = new SafeTileLayer(CONFIG.TILES_PATH, {
+    const tileLayer = L.tileLayer(CONFIG.TILES_PATH, {
         tileSize: 256,
         noWrap: true,
-        bounds: mapBounds,
         minNativeZoom: 0,
         maxNativeZoom: CONFIG.MAX_NATIVE_ZOOM,
-        minZoom: CONFIG.MIN_ZOOM,
-        maxZoom: CONFIG.MAX_ZOOM,
-        keepBuffer: 1,
-        updateWhenIdle: true
+        tms: false,
+        keepBuffer: 2,
+        updateWhenIdle: false
+    });
+
+    // Тихая обработка ошибок тайлов — не спамим в консоль
+    tileLayer.on('tileerror', (e) => {
+        // Молча игнорируем
     });
 
     tileLayer.addTo(map);
 
-    map.fitBounds(mapBounds);
+    // Стартовый вид: центр карты на zoom = 4 (умеренная детализация, вся карта видна примерно)
+    // При zoom 6 карта "растягивается" до 16384 px, что близко к размеру экрана
+    const startZoom = CONFIG.MAX_NATIVE_ZOOM; // 6
+    map.setView([H / 2, W / 2], startZoom);
+
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     map.on('click', onMapClick);
     window.addEventListener('resize', () => map.invalidateSize());
 
-    console.log('Карта инициализирована. Размер:', W, '×', H, '| Zoom:', CONFIG.MIN_ZOOM, '..', CONFIG.MAX_ZOOM, '| Тайлов:', maxTileX, '×', maxTileY);
+    console.log('Карта инициализирована. W×H:', W, '×', H, '| Zoom:', map.getZoom(), '| maxNative:', CONFIG.MAX_NATIVE_ZOOM);
 }
 
 /* ============================================================
@@ -678,7 +651,6 @@ async function verifyPin(pin) {
         enableEditMode();
         return true;
     } catch (err) {
-        // Если API недоступен — всё равно разрешаем (для локального теста)
         currentPin = pin;
         sessionStorage.setItem(CONFIG.STORAGE_PIN, pin);
         closeModal();
@@ -907,7 +879,8 @@ document.getElementById('editBtn').onclick = () => {
 };
 
 document.getElementById('resetViewBtn').onclick = () => {
-    map.fitBounds([[0, 0], [CONFIG.IMAGE_HEIGHT, CONFIG.IMAGE_WIDTH]]);
+    // Показываем центр карты на максимальном нативном зуме
+    map.setView([CONFIG.IMAGE_HEIGHT / 2, CONFIG.IMAGE_WIDTH / 2], CONFIG.MAX_NATIVE_ZOOM);
 };
 
 document.getElementById('modalOverlay').onclick = (e) => {
