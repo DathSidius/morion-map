@@ -300,8 +300,13 @@ const CONFIG = {
     IMAGE_HEIGHT: 12288,
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
     MAX_NATIVE_ZOOM: 6,
-    MIN_ZOOM: 2,     // минимум — вся карта почти на весь экран
-    MAX_ZOOM: 6,
+
+    // Стартовое увеличение карты после fitBounds.
+    // 0 — карта влезает целиком, с полями по бокам.
+    // 0.5 — карта чуть крупнее, крайние части чуть за экраном (можно прокрутить).
+    // 1 — заметно крупнее, придётся таскать мышью, чтобы увидеть края.
+    ZOOM_START_BOOST: 0.5,
+
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
     STORAGE_PIN: 'morion_pin'
@@ -322,11 +327,11 @@ const TYPE_INFO = {
 };
 
 let map;
+let mapBounds = null;
 let locations = [];
 let markers = {};
 let isEditing = false;
 let currentPin = '';
-let mapBounds = null;
 
 /* ============================================================
     УТИЛИТЫ
@@ -361,7 +366,7 @@ function initMap() {
 
     map = L.map('map', {
         crs: L.CRS.Simple,
-        minZoom: CONFIG.MIN_ZOOM,
+        minZoom: 0,
         maxZoom: maxZoom,
         zoomSnap: 0.25,
         zoomDelta: 0.5,
@@ -369,7 +374,7 @@ function initMap() {
         zoomControl: false
     });
 
-    // Границы в "latlng" системе Leaflet
+    // Границы карты в координатах Leaflet
     const southWest = map.unproject([0, H], maxZoom);
     const northEast = map.unproject([W, 0], maxZoom);
     mapBounds = L.latLngBounds(southWest, northEast);
@@ -385,20 +390,21 @@ function initMap() {
         updateWhenIdle: false
     }).addTo(map);
 
-    // Показываем всю карту, БЕЗ ограничений снаружи
-    map.fitBounds(mapBounds, { padding: [0, 0], animate: false });
+    // Вписываем карту целиком
+    map.fitBounds(mapBounds);
 
-    // Чуть увеличиваем, чтобы карта "касалась" краёв экрана
-    const currentZoom = map.getZoom();
-    if (currentZoom < CONFIG.MAX_ZOOM) {
-        map.setZoom(currentZoom + 0.5);
+    // Небольшое увеличение, чтобы карта не казалась мелкой
+    if (CONFIG.ZOOM_START_BOOST > 0) {
+        const z = map.getZoom();
+        const target = Math.min(z + CONFIG.ZOOM_START_BOOST, maxZoom);
+        map.setZoom(target);
     }
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.on('click', onMapClick);
     window.addEventListener('resize', () => map.invalidateSize());
 
-    console.log('Карта готова. World:', W, '×', H, '| Zoom:', map.getZoom(), '| Min/Max:', CONFIG.MIN_ZOOM, '/', maxZoom);
+    console.log('Карта готова. World:', W, '×', H, '| Zoom:', map.getZoom(), '| Max:', maxZoom);
 }
 
 /* ============================================================
@@ -873,9 +879,12 @@ document.getElementById('editBtn').onclick = () => {
 };
 
 document.getElementById('resetViewBtn').onclick = () => {
-    map.fitBounds(mapBounds, { padding: [0, 0], animate: false });
-    const z = map.getZoom();
-    if (z < CONFIG.MAX_ZOOM) map.setZoom(z + 0.5);
+    map.fitBounds(mapBounds);
+    if (CONFIG.ZOOM_START_BOOST > 0) {
+        const z = map.getZoom();
+        const target = Math.min(z + CONFIG.ZOOM_START_BOOST, CONFIG.MAX_NATIVE_ZOOM);
+        map.setZoom(target);
+    }
 };
 
 document.getElementById('modalOverlay').onclick = (e) => {
