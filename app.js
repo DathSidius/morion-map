@@ -19,8 +19,10 @@ let currentPin = '';
 // ============================================================
 function setStatus(state, text) {
     const bar = document.getElementById('statusBar');
+    if (!bar) return;
     bar.className = 'status-bar ' + state;
-    document.getElementById('statusText').textContent = text;
+    const st = document.getElementById('statusText');
+    if (st) st.textContent = text;
 }
 function escapeHtml(s) {
     return String(s || '').replace(/[&<>"']/g, m => ({
@@ -31,9 +33,6 @@ function genId() {
     return 'rec-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 }
 
-// ============================================================
-//  РАБОТА С ДАННЫМИ
-// ============================================================
 function findById(id) {
     return locations.find(l => l.id === id);
 }
@@ -65,9 +64,6 @@ function getPath(record) {
     return path;
 }
 
-// ============================================================
-//  КООРДИНАТЫ
-// ============================================================
 function imageToLeaflet(x, y) {
     const scale = Math.pow(2, ZOOM_LEVEL);
     return L.latLng(-y / scale, x / scale);
@@ -80,15 +76,11 @@ function leafletToImage(latlng) {
     };
 }
 
-// ============================================================
-//  МИГРАЦИЯ
-// ============================================================
 function migrateLocations() {
     locations.forEach(loc => {
         if (!loc.kind) loc.kind = 'location';
         if (loc.parentId === undefined) loc.parentId = null;
         if (loc.kind === 'faction') {
-            // Старое поле parentId → массив bases
             if (!loc.bases) {
                 loc.bases = loc.parentId ? [loc.parentId] : [];
             }
@@ -223,7 +215,6 @@ function renderMarkers() {
             }
         });
 
-        // В режиме редактора клик по маркеру открывает форму сразу
         if (isEditing) {
             marker.on('dragend', (e) => {
                 const pos = e.target.getLatLng();
@@ -269,14 +260,18 @@ function buildPopupHtml(loc) {
 //  МОДАЛКА — БАЗОВЫЕ ФУНКЦИИ
 // ============================================================
 function closeModal() {
-    document.getElementById('modalOverlay').classList.remove('open');
+    const overlay = document.getElementById('modalOverlay');
+    if (overlay) overlay.classList.remove('open');
 }
 function setModal(html) {
     const modal = document.getElementById('modalContent');
+    if (!modal) return;
     modal.innerHTML = html;
-    document.getElementById('modalOverlay').classList.add('open');
+    const overlay = document.getElementById('modalOverlay');
+    if (overlay) overlay.classList.add('open');
 }
-function bindTabs(modal, activeTab) {
+function bindTabs(modal) {
+    if (!modal) return;
     modal.querySelectorAll('.modal-tab').forEach(tab => {
         tab.onclick = () => {
             const target = tab.getAttribute('data-tab');
@@ -294,7 +289,7 @@ function formatDescription(text) {
 }
 
 // ============================================================
-//  ПРОСМОТР ЛОКАЦИИ (без редактора)
+//  ПРОСМОТР ЛОКАЦИИ
 // ============================================================
 function openLocationViewer(loc, activeTab) {
     const info = getTypeInfo(loc);
@@ -347,7 +342,7 @@ function openLocationViewer(loc, activeTab) {
 }
 
 // ============================================================
-//  РЕДАКТИРОВАНИЕ ЛОКАЦИИ
+//  РЕДАКТОР ЛОКАЦИИ
 // ============================================================
 function openLocationEditor(loc, isNew, activeTab) {
     if (!isEditing) return;
@@ -387,7 +382,6 @@ function openLocationEditor(loc, isNew, activeTab) {
     `);
     bindTabs(document.getElementById('modalContent'));
     bindDescPanel(loc, isNew);
-    if (!isNew) bindSubPanel(loc);
 }
 
 // ============================================================
@@ -398,7 +392,6 @@ function renderDescPanel(loc, editable, isNew = false) {
     let html = '';
 
     if (editable) {
-        // Форма редактирования
         const typesDict = loc.kind === 'faction' ? CONFIG.FACTION_TYPES
             : loc.kind === 'sublocation' ? CONFIG.SUBLOCATION_TYPES
             : CONFIG.LOCATION_TYPES;
@@ -451,7 +444,6 @@ function renderDescPanel(loc, editable, isNew = false) {
             <button class="form-btn primary" id="f-save">💾 Сохранить</button>
         </div>`;
     } else {
-        // Просмотр
         if (loc.image) {
             html += `<img class="modal-image" src="${escapeHtml(loc.image)}" alt="${escapeHtml(loc.name)}">`;
         }
@@ -465,16 +457,16 @@ function renderDescPanel(loc, editable, isNew = false) {
             if (metaItems.length) html += `<div class="faction-meta">${metaItems.join('')}</div>`;
         }
     }
-
     return html;
 }
 
 function bindDescPanel(loc, isNew) {
     const modal = document.getElementById('modalContent');
+    if (!modal) return;
     const fFile = modal.querySelector('#f-file');
     const fImage = modal.querySelector('#f-image');
 
-    if (fFile) {
+    if (fFile && fImage) {
         fFile.onchange = async () => {
             const file = fFile.files[0];
             if (!file) return;
@@ -512,12 +504,15 @@ function bindDescPanel(loc, isNew) {
             loc.type = modal.querySelector('#f-type').value;
             loc.short = modal.querySelector('#f-short').value.trim();
             loc.description = modal.querySelector('#f-description').value.trim();
-            loc.image = fImage.value.trim();
+            loc.image = fImage ? fImage.value.trim() : '';
 
             if (loc.kind === 'faction') {
-                loc.leader = modal.querySelector('#f-leader').value.trim();
-                loc.members = modal.querySelector('#f-members').value.trim();
-                loc.goals = modal.querySelector('#f-goals').value.trim();
+                const leaderEl = modal.querySelector('#f-leader');
+                const membersEl = modal.querySelector('#f-members');
+                const goalsEl = modal.querySelector('#f-goals');
+                if (leaderEl) loc.leader = leaderEl.value.trim();
+                if (membersEl) loc.members = membersEl.value.trim();
+                if (goalsEl) loc.goals = goalsEl.value.trim();
                 if (!loc.bases) loc.bases = [];
             }
 
@@ -527,8 +522,6 @@ function bindDescPanel(loc, isNew) {
                     if (loc.parentId === undefined) loc.parentId = null;
                 } else if (loc.kind === 'sublocation') {
                     if (!loc.parentId) loc.parentId = null;
-                } else if (loc.kind === 'faction') {
-                    if (!loc.bases) loc.bases = [];
                 }
                 locations.push(loc);
             } else {
@@ -540,14 +533,9 @@ function bindDescPanel(loc, isNew) {
             if (ok) {
                 closeModal();
                 renderMarkers();
-                // Если создавали подлокацию из локации — вернуться на вкладку «Районы»
                 if (isNew && loc.kind === 'sublocation' && loc.parentId) {
                     const parent = findById(loc.parentId);
                     if (parent) setTimeout(() => openLocationEditor(parent, false, 'sub'), 200);
-                }
-                // Если создавали фракцию — открыть её
-                if (isNew && loc.kind === 'faction') {
-                    setTimeout(() => openFactionEditor(loc, false), 200);
                 }
             }
         };
@@ -572,7 +560,6 @@ function bindDescPanel(loc, isNew) {
                 });
             }
             locations = locations.filter(l => !toDelete.has(l.id));
-            // Чистим связи и bases
             locations.forEach(l => {
                 if (l.links) l.links = l.links.filter(id => !toDelete.has(id));
                 if (l.bases) l.bases = l.bases.filter(id => !toDelete.has(id));
@@ -620,10 +607,6 @@ function renderSubPanel(loc, editable) {
     return html;
 }
 
-function bindSubPanel(loc) {
-    // Здесь пока ничего — все действия через onclick
-}
-
 function renderFacPanel(loc, editable) {
     const facs = getFactionsAt(loc.id);
     let html = '';
@@ -657,8 +640,8 @@ function renderFacPanel(loc, editable) {
     if (editable) {
         const existingFactions = locations.filter(l => l.kind === 'faction' && !facs.some(f => f.id === l.id));
         html += `<div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
-            <button class="add-item-btn" style="flex:1; min-width:200px;" onclick="createNewFactionIn('${loc.id}')">＋ Создать новую фракцию</button>
-            ${existingFactions.length ? `<button class="add-item-btn" style="flex:1; min-width:200px;" onclick="showAttachFactionDialog('${loc.id}')">🔗 Привязать существующую</button>` : ''}
+            <button class="add-item-btn" style="flex:1; min-width:200px; margin-top:0;" onclick="createNewFactionIn('${loc.id}')">＋ Создать новую фракцию</button>
+            ${existingFactions.length ? `<button class="add-item-btn" style="flex:1; min-width:200px; margin-top:0;" onclick="showAttachFactionDialog('${loc.id}')">🔗 Привязать существующую</button>` : ''}
         </div>`;
     }
     return html;
@@ -701,7 +684,7 @@ function renderLinksPanel(loc, editable) {
             }).join('');
             html += `<div class="form-row" style="margin-top:16px;">
                 <label>Добавить связь</label>
-                <select id="f-add-link">
+                <select id="f-add-link" data-loc-id="${loc.id}">
                     <option value="">— Выберите локацию —</option>
                     ${options}
                 </select>
@@ -774,32 +757,35 @@ function openSublocationEditor(sub, isNew = false) {
 
     const modal = document.getElementById('modalContent');
     const fImage = modal.querySelector('#s-image');
+    const sFile = modal.querySelector('#s-file');
 
-    modal.querySelector('#s-file').onchange = async () => {
-        const file = modal.querySelector('#s-file').files[0];
-        if (!file) return;
-        if (file.size > 2 * 1024 * 1024) { alert('Файл больше 2 МБ'); return; }
-        setStatus('loading', 'Загрузка...');
-        const reader = new FileReader();
-        reader.onload = async () => {
-            const base64 = reader.result.split(',')[1];
-            try {
-                const resp = await fetch(CONFIG.API_UPLOAD, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin: currentPin, data: base64, mime: file.type })
-                });
-                const data = await resp.json();
-                if (!resp.ok) throw new Error(data.error);
-                fImage.value = data.url;
-                setStatus('ok', 'Загружено');
-            } catch (err) {
-                alert('Ошибка: ' + err.message);
-                setStatus('error', 'Ошибка');
-            }
+    if (sFile) {
+        sFile.onchange = async () => {
+            const file = sFile.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) { alert('Файл больше 2 МБ'); return; }
+            setStatus('loading', 'Загрузка...');
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const base64 = reader.result.split(',')[1];
+                try {
+                    const resp = await fetch(CONFIG.API_UPLOAD, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pin: currentPin, data: base64, mime: file.type })
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok) throw new Error(data.error);
+                    fImage.value = data.url;
+                    setStatus('ok', 'Загружено');
+                } catch (err) {
+                    alert('Ошибка: ' + err.message);
+                    setStatus('error', 'Ошибка');
+                }
+            };
+            reader.readAsDataURL(file);
         };
-        reader.readAsDataURL(file);
-    };
+    }
 
     modal.querySelector('#s-save').onclick = async () => {
         const name = modal.querySelector('#s-name').value.trim();
@@ -850,13 +836,14 @@ async function deleteSublocation(id) {
     locations = locations.filter(l => l.id !== id);
     const ok = await saveLocations();
     if (ok) {
+        renderMarkers();
         const parent = findById(sub.parentId);
         if (parent) openLocationEditor(parent, false, 'sub');
     }
 }
 
 // ============================================================
-//  ФРАКЦИИ — справочник и редактор
+//  ФРАКЦИИ
 // ============================================================
 function openFactionsLibrary() {
     const factions = locations.filter(l => l.kind === 'faction');
@@ -942,7 +929,10 @@ async function deleteFaction(id) {
     if (!confirm('Удалить фракцию "' + fac.name + '"?')) return;
     locations = locations.filter(l => l.id !== id);
     const ok = await saveLocations();
-    if (ok) openFactionsLibrary();
+    if (ok) {
+        renderMarkers();
+        openFactionsLibrary();
+    }
 }
 
 function openFactionEditor(fac, isNew = false, backToLocId = null) {
@@ -951,7 +941,6 @@ function openFactionEditor(fac, isNew = false, backToLocId = null) {
         `<option value="${key}" ${fac.type === key ? 'selected' : ''}>${inf.icon} ${inf.label}</option>`
     ).join('');
 
-    // Список всех локаций для выбора базисов
     const allLocs = locations.filter(l => l.kind === 'location');
     const basesList = (fac.bases || []).map(id => findById(id)).filter(Boolean);
 
@@ -960,7 +949,7 @@ function openFactionEditor(fac, isNew = false, backToLocId = null) {
         basesHtml = basesList.map(b => {
             const bInfo = getTypeInfo(b);
             const removeBtn = isEditing ? `<span class="remove-link" onclick="event.stopPropagation(); removeFactionBase('${fac.id}', '${b.id}')">✕</span>` : '';
-            return `<span class="modal-link-btn" onclick="${isEditing ? '' : `closeModal(); openLocationViewer(findById('${b.id}'))`}" style="${isEditing ? '' : 'cursor:pointer;'}">${bInfo.icon} ${escapeHtml(b.name)} ${removeBtn}</span>`;
+            return `<span class="modal-link-btn" style="${isEditing ? '' : 'cursor:pointer;'}" onclick="${isEditing ? '' : `closeModal(); openLocationViewer(findById('${b.id}'))`}">${bInfo.icon} ${escapeHtml(b.name)} ${removeBtn}</span>`;
         }).join('');
     } else {
         basesHtml = '<span style="color: var(--ink-muted); font-style: italic; font-size: 14px;">Нет привязки к локациям</span>';
@@ -994,7 +983,7 @@ function openFactionEditor(fac, isNew = false, backToLocId = null) {
             <div class="tab-panel active">
                 <div class="form-row">
                     <label>Название</label>
-                    <input type="text" id="fac-name" value="${escapeHtml(fac.name)}" placeholder="Например: Круг Небесных Тел">
+                    <input type="text" id="fac-name" value="${escapeHtml(fac.name)}" placeholder="Например: Круг Небесных Тел" ${!isEditing ? 'readonly' : ''}>
                 </div>
                 <div class="form-row">
                     <label>Тип фракции</label>
@@ -1043,7 +1032,7 @@ function openFactionEditor(fac, isNew = false, backToLocId = null) {
     const facImage = modal.querySelector('#fac-image');
     const facFile = modal.querySelector('#fac-file');
 
-    if (facFile) {
+    if (facFile && facImage) {
         facFile.onchange = async () => {
             const file = facFile.files[0];
             if (!file) return;
@@ -1073,14 +1062,13 @@ function openFactionEditor(fac, isNew = false, backToLocId = null) {
 
     const addBaseSelect2 = modal.querySelector('#f-add-base');
     if (addBaseSelect2) {
-        addBaseSelect2.onchange = () => {
+        addBaseSelect2.onchange = async () => {
             const id = addBaseSelect2.value;
             if (!id) return;
             if (!fac.bases) fac.bases = [];
             if (!fac.bases.includes(id)) {
                 fac.bases.push(id);
-                // Мгновенно сохраняем
-                saveLocations();
+                await saveLocations();
                 openFactionEditor(fac, false, backToLocId);
             }
         };
@@ -1127,6 +1115,7 @@ function openFactionEditor(fac, isNew = false, backToLocId = null) {
             const ok = await saveLocations();
             if (ok) {
                 closeModal();
+                renderMarkers();
                 if (backToLocId) {
                     const backLoc = findById(backToLocId);
                     if (backLoc) setTimeout(() => openLocationEditor(backLoc, false, 'fac'), 200);
@@ -1134,6 +1123,8 @@ function openFactionEditor(fac, isNew = false, backToLocId = null) {
             }
         };
     }
+
+    if (isNew) setTimeout(() => modal.querySelector('#fac-name').focus(), 100);
 }
 
 async function removeFactionBase(facId, locId) {
@@ -1168,7 +1159,7 @@ function showAttachFactionDialog(locId) {
         <div class="modal-header">
             <div class="modal-title-block">
                 <div class="modal-type">🔗 Привязка</div>
-                <div class="modal-title">Привязать фракцию к «${escapeHtml(loc.name)}»</div>
+                <div class="modal-title">Привязать к «${escapeHtml(loc.name)}»</div>
             </div>
             <button class="modal-close" onclick="closeModal()">✕</button>
         </div>
@@ -1212,21 +1203,28 @@ async function unlinkLocation(locId, otherId) {
     if (ok) openLocationEditor(loc, false, 'links');
 }
 
-// Привязываем обработчик добавления связи через делегирование
+// Делегирование для добавления связи
 document.addEventListener('change', async (e) => {
     if (e.target && e.target.id === 'f-add-link') {
         const targetId = e.target.value;
-        if (!targetId) return;
-        // Находим текущую открытую локацию
-        // Упрощённый вариант: находим все локации, у которых нет этой связи
-        // Но лучше — передавать через data-атрибуты. Пока оставим так:
-        e.target.value = '';
-        // ... обработка будет встроена в форму
+        const sourceLocId = e.target.getAttribute('data-loc-id');
+        if (!targetId || !sourceLocId) return;
+        const sourceLoc = findById(sourceLocId);
+        const targetLoc = findById(targetId);
+        if (!sourceLoc || !targetLoc) return;
+
+        sourceLoc.links = sourceLoc.links || [];
+        targetLoc.links = targetLoc.links || [];
+        if (!sourceLoc.links.includes(targetId)) sourceLoc.links.push(targetId);
+        if (!targetLoc.links.includes(sourceLocId)) targetLoc.links.push(sourceLocId);
+
+        const ok = await saveLocations();
+        if (ok) openLocationEditor(sourceLoc, false, 'links');
     }
 });
 
 // ============================================================
-//  PIN-ФОРМА
+//  PIN
 // ============================================================
 function openPinModal() {
     let pin = '';
@@ -1314,16 +1312,22 @@ async function verifyPin(pin) {
 function enableEditMode() {
     isEditing = true;
     document.body.classList.add('editing');
-    document.getElementById('editBtn').classList.add('active');
-    document.getElementById('editBtn').textContent = '✅ Выйти из редактора';
+    const editBtn = document.getElementById('editBtn');
+    if (editBtn) {
+        editBtn.classList.add('active');
+        editBtn.textContent = '✅ Выйти из редактора';
+    }
     renderMarkers();
     setStatus('ok', 'Режим редактирования');
 }
 function disableEditMode() {
     isEditing = false;
     document.body.classList.remove('editing');
-    document.getElementById('editBtn').classList.remove('active');
-    document.getElementById('editBtn').textContent = '✏️ Редактировать';
+    const editBtn = document.getElementById('editBtn');
+    if (editBtn) {
+        editBtn.classList.remove('active');
+        editBtn.textContent = '✏️ Редактировать';
+    }
     renderMarkers();
     setStatus('ok', 'Просмотр');
 }
@@ -1346,28 +1350,38 @@ function onMapClick(e) {
 }
 
 // ============================================================
-//  КНОПКИ
+//  КНОПКИ (С ЗАЩИТОЙ)
 // ============================================================
-document.getElementById('editBtn').onclick = () => {
-    if (isEditing) disableEditMode();
-    else {
-        const savedPin = sessionStorage.getItem(CONFIG.STORAGE_PIN);
-        if (savedPin) { currentPin = savedPin; enableEditMode(); }
-        else openPinModal();
-    }
-};
+const editBtn = document.getElementById('editBtn');
+if (editBtn) {
+    editBtn.onclick = () => {
+        if (isEditing) disableEditMode();
+        else {
+            const savedPin = sessionStorage.getItem(CONFIG.STORAGE_PIN);
+            if (savedPin) { currentPin = savedPin; enableEditMode(); }
+            else openPinModal();
+        }
+    };
+}
 
-document.getElementById('resetViewBtn').onclick = () => {
-    applyStartView(true);
-};
+const resetBtn = document.getElementById('resetViewBtn');
+if (resetBtn) {
+    resetBtn.onclick = () => applyStartView(true);
+}
 
-document.getElementById('factionsBtn').onclick = () => {
-    openFactionsLibrary();
-};
+const facBtn = document.getElementById('factionsBtn');
+if (facBtn) {
+    facBtn.onclick = () => openFactionsLibrary();
+} else {
+    console.warn('[app.js] Кнопка factionsBtn не найдена в HTML');
+}
 
-document.getElementById('modalOverlay').onclick = (e) => {
-    if (e.target.id === 'modalOverlay') closeModal();
-};
+const overlayEl = document.getElementById('modalOverlay');
+if (overlayEl) {
+    overlayEl.onclick = (e) => {
+        if (e.target.id === 'modalOverlay') closeModal();
+    };
+}
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal();
