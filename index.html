@@ -300,6 +300,8 @@ const CONFIG = {
     IMAGE_HEIGHT: 12288,
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
     MAX_NATIVE_ZOOM: 6,
+    MIN_ZOOM: 2,     // минимум — вся карта почти на весь экран
+    MAX_ZOOM: 6,
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
     STORAGE_PIN: 'morion_pin'
@@ -324,6 +326,7 @@ let locations = [];
 let markers = {};
 let isEditing = false;
 let currentPin = '';
+let mapBounds = null;
 
 /* ============================================================
     УТИЛИТЫ
@@ -340,11 +343,6 @@ function genId() {
     return 'loc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 }
 
-/* ============================================================
-    КОНВЕРТАЦИЯ КООРДИНАТ
-    Работает через map.unproject на максимальном зуме.
-    x, y — пиксели ОРИГИНАЛА (0..18432, 0..12288)
-   ============================================================ */
 function imageToLeaflet(x, y) {
     return map.unproject([x, y], CONFIG.MAX_NATIVE_ZOOM);
 }
@@ -363,7 +361,7 @@ function initMap() {
 
     map = L.map('map', {
         crs: L.CRS.Simple,
-        minZoom: 0,
+        minZoom: CONFIG.MIN_ZOOM,
         maxZoom: maxZoom,
         zoomSnap: 0.25,
         zoomDelta: 0.5,
@@ -371,32 +369,36 @@ function initMap() {
         zoomControl: false
     });
 
-    // unproject на maxZoom даёт точки в системе координат карты
-    const southWest = map.unproject([0, H], maxZoom);  // нижний левый
-    const northEast = map.unproject([W, 0], maxZoom);  // верхний правый
-    const bounds = L.latLngBounds(southWest, northEast);
+    // Границы в "latlng" системе Leaflet
+    const southWest = map.unproject([0, H], maxZoom);
+    const northEast = map.unproject([W, 0], maxZoom);
+    mapBounds = L.latLngBounds(southWest, northEast);
 
-    // TMS: true — ОБЯЗАТЕЛЬНО для gdal2tiles!
     L.tileLayer(CONFIG.TILES_PATH, {
         tileSize: 256,
         tms: true,
         noWrap: true,
-        bounds: bounds,
+        bounds: mapBounds,
         minNativeZoom: 0,
         maxNativeZoom: maxZoom,
         keepBuffer: 2,
         updateWhenIdle: false
     }).addTo(map);
 
-    // Стартовый вид — центр карты, zoom 3 (умеренно)
-    const center = map.unproject([W / 2, H / 2], maxZoom);
-    map.setView(center, 3);
+    // Показываем всю карту, БЕЗ ограничений снаружи
+    map.fitBounds(mapBounds, { padding: [0, 0], animate: false });
+
+    // Чуть увеличиваем, чтобы карта "касалась" краёв экрана
+    const currentZoom = map.getZoom();
+    if (currentZoom < CONFIG.MAX_ZOOM) {
+        map.setZoom(currentZoom + 0.5);
+    }
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.on('click', onMapClick);
     window.addEventListener('resize', () => map.invalidateSize());
 
-    console.log('Карта готова. World:', W, '×', H, '| Max zoom:', maxZoom, '| Start zoom:', map.getZoom());
+    console.log('Карта готова. World:', W, '×', H, '| Zoom:', map.getZoom(), '| Min/Max:', CONFIG.MIN_ZOOM, '/', maxZoom);
 }
 
 /* ============================================================
@@ -871,8 +873,9 @@ document.getElementById('editBtn').onclick = () => {
 };
 
 document.getElementById('resetViewBtn').onclick = () => {
-    const center = map.unproject([CONFIG.IMAGE_WIDTH / 2, CONFIG.IMAGE_HEIGHT / 2], CONFIG.MAX_NATIVE_ZOOM);
-    map.setView(center, 3);
+    map.fitBounds(mapBounds, { padding: [0, 0], animate: false });
+    const z = map.getZoom();
+    if (z < CONFIG.MAX_ZOOM) map.setZoom(z + 0.5);
 };
 
 document.getElementById('modalOverlay').onclick = (e) => {
