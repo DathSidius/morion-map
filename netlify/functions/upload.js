@@ -3,6 +3,22 @@ const { getStore } = require('@netlify/blobs');
 const PIN = process.env.EDIT_PIN || '1488';
 const STORE_NAME = 'morion-images';
 
+// Получаем хранилище с явными учётными данными
+function getBlobStore() {
+    const siteID = process.env.BLOBS_SITE_ID;
+    const token = process.env.BLOBS_TOKEN;
+
+    if (!siteID || !token) {
+        throw new Error('Не заданы переменные BLOBS_SITE_ID и/или BLOBS_TOKEN в Netlify');
+    }
+
+    return getStore({
+        name: STORE_NAME,
+        siteID: siteID,
+        token: token
+    });
+}
+
 exports.handler = async (event) => {
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -10,21 +26,25 @@ exports.handler = async (event) => {
         'Access-Control-Allow-Headers': 'Content-Type'
     };
 
+    // CORS preflight
     if (event.httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers, body: '' };
     }
 
-    const store = getStore(STORE_NAME);
     const qs = event.queryStringParameters || {};
 
-    // === GET ?img=ID — вернуть картинку ===
+    // ============ GET ?img=ID — вернуть картинку ============
     if (event.httpMethod === 'GET' && qs.img) {
         try {
+            const store = getBlobStore();
             const data = await store.get(qs.img, { type: 'arrayBuffer' });
+
             if (!data) {
                 return { statusCode: 404, headers, body: 'Not found' };
             }
+
             const meta = await store.get(qs.img + '.meta', { type: 'json' }) || {};
+
             return {
                 statusCode: 200,
                 headers: {
@@ -36,11 +56,16 @@ exports.handler = async (event) => {
                 isBase64Encoded: true
             };
         } catch (err) {
-            return { statusCode: 500, headers, body: err.message };
+            console.error('GET image error:', err);
+            return {
+                statusCode: 500,
+                headers,
+                body: 'Error: ' + err.message
+            };
         }
     }
 
-    // === POST — загрузить картинку ===
+    // ============ POST — загрузить картинку ============
     if (event.httpMethod === 'POST') {
         try {
             const body = JSON.parse(event.body || '{}');
@@ -61,17 +86,36 @@ exports.handler = async (event) => {
                 };
             }
 
-            // data — base64 без префикса "data:image/..."
+            // Проверка размера (примерно)
+            const sizeBytes = Math.round(body.data.length * 0.75);
+            if (sizeBytes > 3 * 1024 * 1024) {
+                return {
+                    statusCode: 413,
+                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ error: 'Файл больше 3 МБ' })
+                };
+            }
+
+            // Генерируем уникальный ID
             const id = 'img-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
             const buffer = Buffer.from(body.data, 'base64');
 
+            const store = getBlobStore();
+
             await store.set(id, buffer);
-            await store.setJSON(id + '.meta', { mime: body.mime });
+            await store.setJSON(id + '.meta', {
+                mime: body.mime,
+                uploadedAt: new Date().toISOString()
+            });
 
             return {
                 statusCode: 200,
                 headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ok: true, id, url: '/api/image/' + id })
+                body: JSON.stringify({
+                    ok: true,
+                    id: id,
+                    url: '/.netlify/functions/upload?img=' + id
+                })
             };
         } catch (err) {
             console.error('Upload error:', err);
