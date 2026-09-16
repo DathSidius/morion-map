@@ -300,12 +300,14 @@ const CONFIG = {
     IMAGE_WIDTH: 18432,
     IMAGE_HEIGHT: 12288,
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
-    MAX_NATIVE_ZOOM: 6,
-    MIN_ZOOM: -7,
+    MIN_ZOOM: 0,
     MAX_ZOOM: 8,
+    MAX_NATIVE_ZOOM: 6,
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
-    STORAGE_PIN: 'morion_pin'
+    STORAGE_PIN: 'morion_pin',
+    // Прозрачный 1×1 PNG — для подстановки вместо отсутствующих тайлов
+    BLANK_TILE: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
 };
 
 const TYPE_INFO = {
@@ -322,9 +324,6 @@ const TYPE_INFO = {
     gate:     { icon: '🚪', label: 'Врата',            css: '' }
 };
 
-/* ============================================================
-    СОСТОЯНИЕ
-   ============================================================ */
 let map;
 let locations = [];
 let markers = {};
@@ -365,7 +364,11 @@ function leafletToImage(latlng) {
 function initMap() {
     const W = CONFIG.IMAGE_WIDTH;
     const H = CONFIG.IMAGE_HEIGHT;
-    const bounds = L.latLngBounds([[0, 0], [H, W]]);
+    const mapBounds = L.latLngBounds([[0, 0], [H, W]]);
+
+    // Вычисляем координаты тайлов, выходящие за пределы карты
+    const maxTileX = Math.ceil(W / 256);  // 72
+    const maxTileY = Math.ceil(H / 256);  // 48
 
     map = L.map('map', {
         crs: L.CRS.Simple,
@@ -375,46 +378,57 @@ function initMap() {
         zoomDelta: 0.5,
         attributionControl: false,
         zoomControl: false,
-        // Жёстко ограничиваем карту её реальными границами,
-        // чтобы Leaflet не запрашивал тайлы за пределами
-        maxBounds: bounds,
+        maxBounds: mapBounds,
         maxBoundsViscosity: 1.0
     });
 
-    const tileLayer = L.tileLayer(CONFIG.TILES_PATH, {
+    // === КАСТОМНЫЙ TILE LAYER ===
+    // Перехватываем запросы и заменяем тайлы за пределами карты
+    // на прозрачную картинку — чтобы браузер не спамил 404-ми
+    const SafeTileLayer = L.TileLayer.extend({
+        getTileUrl: function(coords) {
+            // Отсекаем всё, что за пределами 0..maxTile
+            if (coords.x < 0 || coords.y < 0 || coords.x >= maxTileX || coords.y >= maxTileY) {
+                return CONFIG.BLANK_TILE;
+            }
+            // Всё, что выше nativeZoom (6) — отдаём тайл с nativeZoom
+            let z = coords.z;
+            let x = coords.x;
+            let y = coords.y;
+            if (z > CONFIG.MAX_NATIVE_ZOOM) {
+                const diff = z - CONFIG.MAX_NATIVE_ZOOM;
+                x = Math.floor(x / Math.pow(2, diff));
+                y = Math.floor(y / Math.pow(2, diff));
+                z = CONFIG.MAX_NATIVE_ZOOM;
+            }
+            return CONFIG.TILES_PATH
+                .replace('{z}', z)
+                .replace('{x}', x)
+                .replace('{y}', y);
+        }
+    });
+
+    const tileLayer = new SafeTileLayer(CONFIG.TILES_PATH, {
         tileSize: 256,
         noWrap: true,
-        bounds: bounds,
+        bounds: mapBounds,
         minNativeZoom: 0,
         maxNativeZoom: CONFIG.MAX_NATIVE_ZOOM,
         minZoom: CONFIG.MIN_ZOOM,
         maxZoom: CONFIG.MAX_ZOOM,
-        tms: false,
-        keepBuffer: 2,
-        updateWhenIdle: false
-    });
-
-    // Показываем в консоли, какие тайлы запрашиваются (для отладки)
-    tileLayer.on('tileloadstart', (e) => {
-        // Логируем только первый тайл каждого zoom для диагностики
-        if (!window._loggedZooms) window._loggedZooms = new Set();
-        if (!window._loggedZooms.has(e.coords.z)) {
-            window._loggedZooms.add(e.coords.z);
-            console.log(`[Zoom ${e.coords.z}] URL: ${e.tile.src}`);
-        }
+        keepBuffer: 1,
+        updateWhenIdle: true
     });
 
     tileLayer.addTo(map);
 
-    // Подгоняем вид так, чтобы вся карта была видна
-    map.fitBounds(bounds);
-
+    map.fitBounds(mapBounds);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     map.on('click', onMapClick);
     window.addEventListener('resize', () => map.invalidateSize());
 
-    console.log('Карта инициализирована. W×H:', W, '×', H, '| Zoom:', map.getZoom(), '| Min/Max:', CONFIG.MIN_ZOOM, '/', CONFIG.MAX_ZOOM);
+    console.log('Карта инициализирована. Размер:', W, '×', H, '| Zoom:', CONFIG.MIN_ZOOM, '..', CONFIG.MAX_ZOOM, '| Тайлов:', maxTileX, '×', maxTileY);
 }
 
 /* ============================================================
@@ -430,14 +444,13 @@ async function loadLocations() {
         renderMarkers();
         setStatus('ok', locations.length + ' локаций');
     } catch (err) {
-        console.error(err);
-        setStatus('error', 'Ошибка загрузки');
+        console.error('Ошибка загрузки локаций:', err);
+        setStatus('error', 'API не отвечает');
         const cached = localStorage.getItem('morion_locations');
         if (cached) {
             try {
                 locations = JSON.parse(cached);
                 renderMarkers();
-                setStatus('error', 'Из кэша');
             } catch {}
         }
     }
@@ -665,6 +678,7 @@ async function verifyPin(pin) {
         enableEditMode();
         return true;
     } catch (err) {
+        // Если API недоступен — всё равно разрешаем (для локального теста)
         currentPin = pin;
         sessionStorage.setItem(CONFIG.STORAGE_PIN, pin);
         closeModal();
