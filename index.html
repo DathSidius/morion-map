@@ -296,15 +296,21 @@ body.editing .custom-marker { cursor: move; }
     КОНФИГ
    ============================================================ */
 const CONFIG = {
+    // Размеры ОРИГИНАЛЬНОЙ карты (в пикселях)
     IMAGE_WIDTH: 18432,
     IMAGE_HEIGHT: 12288,
-    TILES_PATH: 'tiles/{z}/{x}/{y}.png',
+    TILE_SIZE: 256,
+    // Сколько уровней нарезал gdal2tiles (0..6)
     MAX_NATIVE_ZOOM: 6,
-    MAX_ZOOM: 8,
+    TILES_PATH: 'tiles/{z}/{x}/{y}.png',
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
     STORAGE_PIN: 'morion_pin'
 };
+
+// Размеры карты в "units" (1 unit = 1 тайл на макс. зуме)
+const WORLD_W = CONFIG.IMAGE_WIDTH / CONFIG.TILE_SIZE;   // 72
+const WORLD_H = CONFIG.IMAGE_HEIGHT / CONFIG.TILE_SIZE;  // 48
 
 const TYPE_INFO = {
     capital:  { icon: '🏰', label: 'Столица',          css: 'marker-capital' },
@@ -343,14 +349,20 @@ function genId() {
 
 /* ============================================================
     КОНВЕРТАЦИЯ КООРДИНАТ
+    Пиксели оригинала <-> Leaflet lat/lng
    ============================================================ */
-function imageToLeaflet(x, y) {
-    return [CONFIG.IMAGE_HEIGHT - y, x];
+function imageToLeaflet(xPixel, yPixel) {
+    // xPixel: 0..IMAGE_WIDTH (слева направо)
+    // yPixel: 0..IMAGE_HEIGHT (сверху вниз)
+    // Leaflet lat = WORLD_H - yUnit, lng = xUnit
+    const xUnit = xPixel / CONFIG.TILE_SIZE;
+    const yUnit = yPixel / CONFIG.TILE_SIZE;
+    return [WORLD_H - yUnit, xUnit];
 }
 function leafletToImage(latlng) {
     return {
-        x: Math.round(latlng.lng),
-        y: Math.round(CONFIG.IMAGE_HEIGHT - latlng.lat)
+        x: Math.round(latlng.lng * CONFIG.TILE_SIZE),
+        y: Math.round((WORLD_H - latlng.lat) * CONFIG.TILE_SIZE)
     };
 }
 
@@ -358,50 +370,43 @@ function leafletToImage(latlng) {
     ИНИЦИАЛИЗАЦИЯ КАРТЫ
    ============================================================ */
 function initMap() {
-    const W = CONFIG.IMAGE_WIDTH;
-    const H = CONFIG.IMAGE_HEIGHT;
-    const mapBounds = L.latLngBounds([[0, 0], [H, W]]);
-
-    map = L.map('map', {
-        crs: L.CRS.Simple,
-        minZoom: 0,
-        maxZoom: CONFIG.MAX_ZOOM,
-        zoomSnap: 0.25,
-        zoomDelta: 0.5,
-        attributionControl: false,
-        zoomControl: false,
-        maxBounds: mapBounds,
-        maxBoundsViscosity: 0.8
+    // Кастомный CRS: масштаб 256 pixels/unit при maxNativeZoom
+    // Это заставляет Leaflet zoom совпадать с gdal zoom
+    const customCRS = L.extend({}, L.CRS.Simple, {
+        scale: function(zoom) {
+            return CONFIG.TILE_SIZE * Math.pow(2, zoom - CONFIG.MAX_NATIVE_ZOOM);
+        }
     });
 
-    const tileLayer = L.tileLayer(CONFIG.TILES_PATH, {
-        tileSize: 256,
+    map = L.map('map', {
+        crs: customCRS,
+        minZoom: 0,
+        maxZoom: CONFIG.MAX_NATIVE_ZOOM,
+        zoomSnap: 0.5,
+        zoomDelta: 0.5,
+        attributionControl: false,
+        zoomControl: false
+    });
+
+    L.tileLayer(CONFIG.TILES_PATH, {
+        tileSize: CONFIG.TILE_SIZE,
         noWrap: true,
         minNativeZoom: 0,
         maxNativeZoom: CONFIG.MAX_NATIVE_ZOOM,
         tms: false,
         keepBuffer: 2,
         updateWhenIdle: false
-    });
+    }).addTo(map);
 
-    // Тихая обработка ошибок тайлов — не спамим в консоль
-    tileLayer.on('tileerror', (e) => {
-        // Молча игнорируем
-    });
-
-    tileLayer.addTo(map);
-
-    // Стартовый вид: центр карты на zoom = 4 (умеренная детализация, вся карта видна примерно)
-    // При zoom 6 карта "растягивается" до 16384 px, что близко к размеру экрана
-    const startZoom = CONFIG.MAX_NATIVE_ZOOM; // 6
-    map.setView([H / 2, W / 2], startZoom);
+    const bounds = [[0, 0], [WORLD_H, WORLD_W]];
+    map.fitBounds(bounds);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     map.on('click', onMapClick);
     window.addEventListener('resize', () => map.invalidateSize());
 
-    console.log('Карта инициализирована. W×H:', W, '×', H, '| Zoom:', map.getZoom(), '| maxNative:', CONFIG.MAX_NATIVE_ZOOM);
+    console.log('Карта инициализирована. World:', WORLD_W, '×', WORLD_H, '| Zoom:', map.getZoom(), '/', CONFIG.MAX_NATIVE_ZOOM);
 }
 
 /* ============================================================
@@ -679,9 +684,6 @@ function disableEditMode() {
     setStatus('ok', locations.length + ' локаций');
 }
 
-/* ============================================================
-    СОЗДАНИЕ НОВОЙ ЛОКАЦИИ
-   ============================================================ */
 function onMapClick(e) {
     if (!isEditing) return;
     if (e.originalEvent && e.originalEvent._dragged) return;
@@ -879,8 +881,7 @@ document.getElementById('editBtn').onclick = () => {
 };
 
 document.getElementById('resetViewBtn').onclick = () => {
-    // Показываем центр карты на максимальном нативном зуме
-    map.setView([CONFIG.IMAGE_HEIGHT / 2, CONFIG.IMAGE_WIDTH / 2], CONFIG.MAX_NATIVE_ZOOM);
+    map.fitBounds([[0, 0], [WORLD_H, WORLD_W]]);
 };
 
 document.getElementById('modalOverlay').onclick = (e) => {
