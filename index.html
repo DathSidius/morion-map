@@ -11,7 +11,6 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-rastercoords@1.0.6/dist/leaflet-rastercoords.min.js"></script>
 
 <style>
 :root {
@@ -324,7 +323,7 @@ const TYPE_INFO = {
 /* ============================================================
     СОСТОЯНИЕ
    ============================================================ */
-let map, rc;
+let map;
 let locations = [];
 let markers = {};
 let isEditing = false;
@@ -346,10 +345,27 @@ function genId() {
 }
 
 /* ============================================================
+    КОНВЕРТАЦИЯ КООРДИНАТ
+    imageX, imageY — от ЛЕВОГО ВЕРХНЕГО угла картинки (0..W, 0..H)
+    Leaflet CRS.Simple — координаты [y, x] где y идёт СНИЗУ ВВЕРХ
+   ============================================================ */
+function imageToLeaflet(x, y) {
+    return [CONFIG.IMAGE_HEIGHT - y, x];
+}
+function leafletToImage(latlng) {
+    return {
+        x: latlng.lng,
+        y: CONFIG.IMAGE_HEIGHT - latlng.lat
+    };
+}
+
+/* ============================================================
     ИНИЦИАЛИЗАЦИЯ КАРТЫ
    ============================================================ */
 function initMap() {
-    const img = [CONFIG.IMAGE_WIDTH, CONFIG.IMAGE_HEIGHT];
+    const H = CONFIG.IMAGE_HEIGHT;
+    const W = CONFIG.IMAGE_WIDTH;
+    const bounds = [[0, 0], [H, W]];
 
     map = L.map('map', {
         crs: L.CRS.Simple,
@@ -361,20 +377,18 @@ function initMap() {
         zoomControl: false
     });
 
-    rc = new L.RasterCoords(map, img);
-    map.setMaxZoom(rc.zoomLevel());
-
     L.tileLayer(CONFIG.TILES_PATH, {
-        noWrap: true,
-        bounds: rc.getMaxBounds(),
-        maxNativeZoom: CONFIG.MAX_ZOOM,
-        tms: false,
         tileSize: 256,
-        keepBuffer: 4,
-        updateWhenIdle: false
+        noWrap: true,
+        bounds: bounds,
+        minNativeZoom: 0,
+        maxNativeZoom: CONFIG.MAX_ZOOM,
+        minZoom: 0,
+        maxZoom: CONFIG.MAX_ZOOM,
+        tms: false
     }).addTo(map);
 
-    map.fitBounds(rc.getMaxBounds());
+    map.fitBounds(bounds);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -439,7 +453,7 @@ function renderMarkers() {
 
     locations.forEach(loc => {
         const info = TYPE_INFO[loc.type] || TYPE_INFO.city;
-        const latlng = rc.unproject([loc.x, loc.y]);
+        const latlng = imageToLeaflet(loc.x, loc.y);
 
         const icon = L.divIcon({
             className: 'custom-marker',
@@ -465,7 +479,7 @@ function renderMarkers() {
         if (isEditing) {
             marker.on('dragend', (e) => {
                 const pos = e.target.getLatLng();
-                const coords = rc.project(pos);
+                const coords = leafletToImage(pos);
                 loc.x = Math.round(coords.x);
                 loc.y = Math.round(coords.y);
                 saveLocations();
@@ -665,7 +679,7 @@ function onMapClick(e) {
     if (!isEditing) return;
     if (e.originalEvent && e.originalEvent._dragged) return;
 
-    const coords = rc.project(e.latlng);
+    const coords = leafletToImage(e.latlng);
     const newLoc = {
         id: genId(),
         name: '', type: 'city',
@@ -858,7 +872,7 @@ document.getElementById('editBtn').onclick = () => {
 };
 
 document.getElementById('resetViewBtn').onclick = () => {
-    map.fitBounds(rc.getMaxBounds());
+    map.fitBounds([[0, 0], [CONFIG.IMAGE_HEIGHT, CONFIG.IMAGE_WIDTH]]);
 };
 
 document.getElementById('modalOverlay').onclick = (e) => {
