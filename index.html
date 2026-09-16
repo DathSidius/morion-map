@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Моррион — Интерактивная карта</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+:root {
+    --parchment: #f2e5c8;
+    --parchment-dark: #d9c89e;
+    --parchment-deep: #c9b68a;
+    --ink: #2a1e10;
+    --ink-soft: #4a3520;
+    --ink-muted: #7a6248;
+    --accent: #8b2d1a;
+    --accent-2: #a8451f;
+    --gold: #b8860b;
+    --gold-light: #d4a017;
+    --border: #8a6d45;
+    --border-strong: #5c4423;
+    --shadow: rgba(60, 40, 15, 0.3);
+    --heading-font: 'Cinzel', serif;
+    --body-font: 'Cormorant Garamond', Georgia, serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #1a1208;
+    font-family: var(--body-font);
+    color: var(--ink);
+    user-select: none;
+}
+
+#map {
+    width: 100vw;
+    height: 100vh;
+    background: #2a2015;
+}
+
+/* ===== LEAFLET STYLE ===== */
+.leaflet-container {
+    background: #2a2015;
+    font-family: var(--body-font);
+}
+.leaflet-control-zoom {
+    border: 2px solid var(--border-strong) !important;
+    border-radius: 8px !important;
+    overflow: hidden;
+    box-shadow: 0 4px 16px var(--shadow) !important;
+}
+.leaflet-control-zoom a {
+    background: var(--parchment) !important;
+    color: var(--ink) !important;
+    font-family: var(--heading-font) !important;
+    font-weight: 700 !important;
+    font-size: 18px !important;
+    border-bottom: 1px solid var(--border) !important;
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+}
+.leaflet-control-zoom a:hover {
+    background: var(--parchment-dark) !important;
+    color: var(--accent) !important;
+}
+
+/* ===== МАРКЕРЫ ===== */
+.custom-marker {
+    background: transparent !important;
+    border: none !important;
+}
+.marker-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    background: var(--parchment);
+    border: 2px solid var(--border-strong);
+    border-radius: 50%;
+    box-shadow: 0 3px 8px var(--shadow), inset 0 -2px 4px rgba(0,0,0,0.15);
+    font-size: 20px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+}
+.marker-icon::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 10px;
+    height: 10px;
+    background: var(--parchment);
+    border-right: 2px solid var(--border-strong);
+    border-bottom: 2px solid var(--border-strong);
+}
+.marker-icon:hover {
+    transform: scale(1.15) translateY(-3px);
+    box-shadow: 0 8px 20px var(--shadow), inset 0 -2px 4px rgba(0,0,0,0.15);
+    border-color: var(--accent);
+    background: var(--gold-light);
+}
+.marker-icon.marker-region {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+    opacity: 0.9;
+    border-style: dashed;
+}
+.marker-icon.marker-region::after {
+    display: none;
+}
+.marker-icon.marker-capital {
+    background: var(--gold-light);
+    border-color: var(--gold);
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+    box-shadow: 0 4px 12px var(--shadow), 0 0 20px rgba(212, 160, 23, 0.6), inset 0 -2px 4px rgba(0,0,0,0.15);
+}
+.marker-icon.marker-capital::after {
+    background: var(--gold-light);
+    border-color: var(--gold);
+}
+.marker-icon.marker-sea {
+    background: rgba(100, 140, 180, 0.5);
+    border-color: #4a6a8a;
+    border-style: dashed;
+    opacity: 0.7;
+}
+.marker-icon.marker-sea::after { display: none; }
+.marker-icon.marker-dark {
+    background: #3a2a3a;
+    color: #d9b8d9;
+    border-color: #5a3a5a;
+    box-shadow: 0 4px 12px var(--shadow), 0 0 20px rgba(150, 50, 150, 0.5);
+}
+.marker-icon.marker-dark::after {
+    background: #3a2a3a;
+    border-color: #5a3a5a;
+}
+
+/* ===== ПОПАП ===== */
+.leaflet-popup-content-wrapper {
+    background: var(--parchment);
+    border: 2px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px var(--shadow);
+    padding: 0;
+    overflow: hidden;
+}
+.leaflet-popup-content {
+    margin: 0;
+    padding: 0;
+    font-family: var(--body-font);
+    color: var(--ink);
+    min-width: 220px;
+    max-width: 300px;
+}
+.leaflet-popup-tip {
+    background: var(--border-strong);
+}
+.leaflet-popup-close-button {
+    color: var(--ink) !important;
+    font-size: 20px !important;
+    padding: 6px 8px !important;
+    z-index: 10;
+}
+.popup-header {
+    padding: 10px 14px;
+    background: linear-gradient(180deg, var(--parchment-dark), var(--parchment-deep));
+    border-bottom: 1px solid var(--border);
+    font-family: var(--heading-font);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.popup-body {
+    padding: 12px 14px;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+}
+.popup-body p {
+    margin: 0 0 8px 0;
+}
+.popup-body p:last-child { margin-bottom: 0; }
+.popup-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background: var(--accent);
+    color: #f2e5c8;
+    border: none;
+    font-family: var(--heading-font);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+.popup-btn:hover {
+    background: var(--accent-2);
+}
+
+/* ===== ВЕРХНЯЯ ПАНЕЛЬ ===== */
+.top-bar {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 500;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.top-title {
+    padding: 10px 20px;
+    background: var(--parchment);
+    border: 2px solid var(--border-strong);
+    border-radius: 8px;
+    font-family: var(--heading-font);
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    box-shadow: 0 4px 16px var(--shadow);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+}
+
+/* ===== КНОПКИ ===== */
+.map-btn {
+    padding: 10px 16px;
+    background: var(--parchment);
+    border: 2px solid var(--border-strong);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: var(--heading-font);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    box-shadow: 0 4px 12px var(--shadow);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+}
+.map-btn:hover {
+    background: var(--gold-light);
+    border-color: var(--gold);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+.map-btn.active {
+    background: var(--accent);
+    color: var(--parchment);
+    border-color: var(--accent);
+}
+.map-btn.active:hover {
+    background: var(--accent-2);
+}
+
+/* ===== МОДАЛКА ===== */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 12, 6, 0.85);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.25s ease;
+}
+.modal-overlay.open {
+    display: flex;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+    background: var(--parchment);
+    border: 3px solid var(--border-strong);
+    border-radius: 12px;
+    max-width: 720px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    position: relative;
+    animation: modalIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 20% 30%, rgba(139, 69, 19, 0.04), transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(139, 69, 19, 0.04), transparent 40%);
+    pointer-events: none;
+}
+
+.modal-header {
+    padding: 20px 28px;
+    border-bottom: 2px solid var(--border);
+    background: linear-gradient(180deg, var(--parchment-dark), var(--parchment));
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+.modal-title-block { flex: 1; }
+.modal-type {
+    font-family: var(--heading-font);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.modal-title {
+    font-family: var(--heading-font);
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+}
+.modal-close {
+    background: transparent;
+    border: 2px solid var(--border-strong);
+    color: var(--ink);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.modal-close:hover {
+    background: var(--accent);
+    color: var(--parchment);
+    border-color: var(--accent);
+    transform: rotate(90deg);
+}
+
+.modal-body {
+    padding: 24px 28px;
+    position: relative;
+}
+.modal-image {
+    width: 100%;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px var(--shadow);
+    display: block;
+}
+.modal-description {
+    font-family: var(--body-font);
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--ink-soft);
+    white-space: pre-wrap;
+}
+.modal-description p { margin-bottom: 12px; }
+.modal-links {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px dashed var(--border);
+}
+.modal-links-title {
+    font-family: var(--heading-font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+.modal-links-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.modal-link-btn {
+    padding: 8px 14px;
+    background: var(--parchment-dark);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-family: var(--heading-font);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.modal-link-btn:hover {
+    background: var(--gold-light);
+    border-color: var(--gold);
+    transform: translateY(-1px);
+}
+
+/* ===== ФОРМА РЕДАКТИРОВАНИЯ ===== */
+.form-row {
+    margin-bottom: 16px;
+}
+.form-row label {
+    display: block;
+    font-family: var(--heading-font);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.form-row input,
+.form-row select,
+.form-row textarea {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--parchment-dark);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    color: var(--ink);
+    font-family: var(--body-font);
+    font-size: 16px;
+    transition: all 0.2s;
+}
+.form-row input:focus,
+.form-row select:focus,
+.form-row textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--parchment);
+    box-shadow: 0 0 0 3px rgba(139, 45, 26, 0.15);
+}
+.form-row textarea {
+    min-height: 100px;
+    resize: vertical;
+    font-family: var(--body-font);
+}
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+.form-btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-family: var(--heading-font);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    text-transform: uppercase;
+}
+.form-btn.primary {
+    background: var(--accent);
+    color: var(--parchment);
+    border-color: var(--accent);
+}
+.form-btn.primary:hover {
+    background: var(--accent-2);
+    border-color: var(--accent-2);
+}
+.form-btn.danger {
+    background: transparent;
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.form-btn.danger:hover {
+    background: var(--accent);
+    color: var(--parchment);
+}
+.form-btn.secondary {
+    background: var(--parchment-dark);
+    color: var(--ink);
+    border-color: var(--border);
+}
+.form-btn.secondary:hover {
+    background: var(--parchment-deep);
+}
+
+/* ===== PIN-ФОРМА ===== */
+.pin-form {
+    text-align: center;
+    padding: 20px 0;
+}
+.pin-display {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin: 24px 0;
+}
+.pin-digit {
+    width: 56px;
+    height: 70px;
+    border: 3px solid var(--border-strong);
+    border-radius: 10px;
+    background: var(--parchment-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--heading-font);
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--accent);
+    transition: all 0.2s;
+}
+.pin-digit.filled {
+    background: var(--gold-light);
+    border-color: var(--gold);
+    transform: scale(1.05);
+}
+.pin-hint {
+    font-family: var(--body-font);
+    font-size: 16px;
+    color: var(--ink-muted);
+    font-style: italic;
+}
+
+/* ===== ИНФО-СТРОКА ===== */
+.status-bar {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 500;
+    padding: 8px 16px;
+    background: var(--parchment);
+    border: 2px solid var(--border-strong);
+    border-radius: 20px;
+    font-family: var(--heading-font);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+    box-shadow: 0 4px 12px var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.status-bar .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ink-muted);
+}
+.status-bar.ok .dot { background: #4a8a2a; box-shadow: 0 0 8px #4a8a2a; }
+.status-bar.error .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.status-bar.loading .dot { background: var(--gold); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ===== КУРСОР В РЕЖИМЕ РЕДАКТИРОВАНИЯ ===== */
+body.editing #map { cursor: crosshair; }
+body.editing .custom-marker { cursor: move; }
+
+/* ===== АДАПТИВ ===== */
+@media (max-width: 768px) {
+    .top-title { font-size: 16px; padding: 8px 14px; letter-spacing: 0.1em; }
+    .map-btn { padding: 8px 12px; font-size: 12px; }
+    .modal-header { padding: 16px 20px; }
+    .modal-title { font-size: 22px; }
+    .modal-body { padding: 18px 20px; }
+    .pin-digit { width: 46px; height: 58px; font-size: 26px; }
+}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="top-bar">
+    <div class="top-title">⚔ МОРРИОН</div>
+    <button class="map-btn" id="editBtn" title="Режим редактирования">✏️ Редактировать</button>
+    <button class="map-btn" id="resetViewBtn" title="Сбросить вид">🎯 Обзор</button>
+</div>
+
+<div class="status-bar" id="statusBar">
+    <span class="dot"></span>
+    <span id="statusText">Загрузка...</span>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+/* ============================================================
+    КОНФИГ
+   ============================================================ */
+const CONFIG = {
+    MAP_IMAGE: 'MAP.png',
+    API_LOCATIONS: '/api/locations',
+    API_UPLOAD: '/api/upload',
+    STORAGE_PIN: 'morion_pin'
+};
+
+const TYPE_INFO = {
+    capital:  { icon: '🏰', label: 'Столица',          css: 'marker-capital' },
+    city:     { icon: '🏘️', label: 'Город',            css: '' },
+    fortress: { icon: '⚔️', label: 'Крепость',         css: '' },
+    village:  { icon: '🛖', label: 'Деревня',          css: '' },
+    port:     { icon: '⚓', label: 'Порт',             css: '' },
+    region:   { icon: '📜', label: 'Регион',           css: 'marker-region' },
+    sea:      { icon: '🌊', label: 'Море',             css: 'marker-sea' },
+    forest:   { icon: '🌲', label: 'Лес',              css: 'marker-region' },
+    mountain: { icon: '⛰️', label: 'Гора',             css: 'marker-region' },
+    dark:     { icon: '💀', label: 'Тёмное место',     css: 'marker-dark' },
+    gate:     { icon: '🚪', label: 'Врата',            css: '' }
+};
+
+/* ============================================================
+    СОСТОЯНИЕ
+   ============================================================ */
+let map, imageOverlay;
+let imageW = 2000, imageH = 1333;
+let locations = [];
+let markers = {};
+let isEditing = false;
+let currentPin = '';
+
+/* ============================================================
+    УТИЛИТЫ
+   ============================================================ */
+function setStatus(state, text) {
+    const bar = document.getElementById('statusBar');
+    bar.className = 'status-bar ' + state;
+    document.getElementById('statusText').textContent = text;
+}
+
+function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[m]);
+}
+
+function genId() {
+    return 'loc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+}
+
+/* ============================================================
+    ИНИЦИАЛИЗАЦИЯ КАРТЫ
+   ============================================================ */
+async function initMap() {
+    // Загружаем картинку, чтобы узнать размеры
+    const img = new Image();
+    img.src = CONFIG.MAP_IMAGE;
+
+    await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error('Не удалось загрузить ' + CONFIG.MAP_IMAGE));
+    });
+
+    imageW = img.naturalWidth;
+    imageH = img.naturalHeight;
+
+    // Leaflet CRS.Simple: координаты [y, x], y идёт снизу вверх
+    // Наши данные — в процентах [0..100] от левого ВЕРХНЕГО угла
+    // Конвертация: leafletY = imageH - (y/100 * imageH)
+    map = L.map('map', {
+        crs: L.CRS.Simple,
+        minZoom: -2,
+        maxZoom: 3,
+        zoomSnap: 0.25,
+        zoomDelta: 0.5,
+        attributionControl: false,
+        zoomControl: false
+    });
+
+    const bounds = [[0, 0], [imageH, imageW]];
+    imageOverlay = L.imageOverlay(CONFIG.MAP_IMAGE, bounds).addTo(map);
+    map.fitBounds(bounds);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    // Клик по карте в режиме редактирования
+    map.on('click', onMapClick);
+
+    // Обработка ресайза
+    window.addEventListener('resize', () => map.invalidateSize());
+}
+
+/* ============================================================
+    ЗАГРУЗКА ЛОКАЦИЙ
+   ============================================================ */
+async function loadLocations() {
+    setStatus('loading', 'Загрузка...');
+    try {
+        const resp = await fetch(CONFIG.API_LOCATIONS);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        locations = data.locations || [];
+        renderMarkers();
+        setStatus('ok', locations.length + ' локаций');
+    } catch (err) {
+        console.error(err);
+        setStatus('error', 'Ошибка загрузки');
+        // Fallback: пробуем из localStorage
+        const cached = localStorage.getItem('morion_locations');
+        if (cached) {
+            try {
+                locations = JSON.parse(cached);
+                renderMarkers();
+                setStatus('error', 'Из кэша');
+            } catch {}
+        }
+    }
+}
+
+async function saveLocations() {
+    if (!currentPin) {
+        alert('Сначала введите PIN');
+        return false;
+    }
+    setStatus('loading', 'Сохранение...');
+    try {
+        const resp = await fetch(CONFIG.API_LOCATIONS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pin: currentPin,
+                locations: locations
+            })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+
+        // Кэш
+        localStorage.setItem('morion_locations', JSON.stringify(locations));
+        setStatus('ok', 'Сохранено');
+        return true;
+    } catch (err) {
+        console.error(err);
+        setStatus('error', 'Ошибка сохранения');
+        alert('Ошибка: ' + err.message);
+        return false;
+    }
+}
+
+/* ============================================================
+    РЕНДЕР МАРКЕРОВ
+   ============================================================ */
+function renderMarkers() {
+    // Удаляем старые
+    Object.values(markers).forEach(m => map.removeLayer(m));
+    markers = {};
+
+    locations.forEach(loc => {
+        const info = TYPE_INFO[loc.type] || TYPE_INFO.city;
+        const leafletY = imageH - (loc.y / 100 * imageH);
+        const leafletX = loc.x / 100 * imageW;
+
+        const icon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div class="marker-icon ${info.css}">${info.icon}</div>`,
+            iconSize: [38, 38],
+            iconAnchor: [19, 44],
+            popupAnchor: [0, -40]
+        });
+
+        const marker = L.marker([leafletY, leafletX], {
+            icon,
+            draggable: isEditing
+        }).addTo(map);
+
+        // Попап
+        marker.bindPopup(buildPopupHtml(loc), {
+            maxWidth: 300,
+            minWidth: 220,
+            closeButton: true,
+            autoPan: true
+        });
+
+        // Клик по попапу — обработка кнопки "Подробнее"
+        marker.on('popupopen', () => {
+            const btn = document.querySelector('.popup-btn[data-id="' + loc.id + '"]');
+            if (btn) {
+                btn.onclick = () => {
+                    marker.closePopup();
+                    openDetailsModal(loc);
+                };
+            }
+        });
+
+        // Drag-n-drop в режиме редактирования
+        if (isEditing) {
+            marker.on('dragend', (e) => {
+                const pos = e.target.getLatLng();
+                loc.x = (pos.lng / imageW) * 100;
+                loc.y = ((imageH - pos.lat) / imageH) * 100;
+                saveLocations();
+            });
+            marker.on('click', (e) => {
+                if (isEditing) {
+                    L.DomEvent.stopPropagation(e);
+                    openEditModal(loc);
+                }
+            });
+        }
+
+        markers[loc.id] = marker;
+    });
+}
+
+function buildPopupHtml(loc) {
+    const info = TYPE_INFO[loc.type] || TYPE_INFO.city;
+    return `
+        <div class="popup-header">${info.icon} ${escapeHtml(loc.name)}</div>
+        <div class="popup-body">
+            <p>${escapeHtml(loc.short || info.label)}</p>
+        </div>
+        <button class="popup-btn" data-id="${loc.id}">Подробнее →</button>
+    `;
+}
+
+/* ============================================================
+    МОДАЛКА С ОПИСАНИЕМ
+   ============================================================ */
+function openDetailsModal(loc) {
+    const info = TYPE_INFO[loc.type] || TYPE_INFO.city;
+    const overlay = document.getElementById('modalOverlay');
+    const modal = document.getElementById('modalContent');
+
+    let linksHtml = '';
+    if (loc.links && loc.links.length) {
+        const linkBtns = loc.links.map(id => {
+            const target = locations.find(l => l.id === id);
+            if (!target) return '';
+            return `<button class="modal-link-btn" data-goto="${id}">${escapeHtml(target.name)}</button>`;
+        }).filter(Boolean).join('');
+        if (linkBtns) {
+            linksHtml = `
+                <div class="modal-links">
+                    <div class="modal-links-title">Связанные локации</div>
+                    <div class="modal-links-list">${linkBtns}</div>
+                </div>
+            `;
+        }
+    }
+
+    modal.innerHTML = `
+        <div class="modal-header">
+            <div class="modal-title-block">
+                <div class="modal-type">${info.icon} ${info.label}</div>
+                <div class="modal-title">${escapeHtml(loc.name)}</div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            ${loc.image ? `<img class="modal-image" src="${escapeHtml(loc.image)}" alt="${escapeHtml(loc.name)}">` : ''}
+            <div class="modal-description">${formatDescription(loc.description || loc.short || '')}</div>
+            ${linksHtml}
+            ${isEditing ? `<div class="form-actions" style="margin-top:24px;">
+                <button class="form-btn secondary" onclick="editFromDetails('${loc.id}')">✏️ Редактировать</button>
+            </div>` : ''}
+        </div>
+    `;
+
+    // Обработка кликов по связанным локациям
+    modal.querySelectorAll('[data-goto]').forEach(btn => {
+        btn.onclick = () => {
+            const targetId = btn.getAttribute('data-goto');
+            const target = locations.find(l => l.id === targetId);
+            if (target) {
+                closeModal();
+                openDetailsModal(target);
+            }
+        };
+    });
+
+    overlay.classList.add('open');
+}
+
+function formatDescription(text) {
+    if (!text) return '';
+    // Простая обработка переносов
+    return escapeHtml(text).replace(/\n/g, '<br>');
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function editFromDetails(id) {
+    const loc = locations.find(l => l.id === id);
+    if (loc) openEditModal(loc);
+}
+
+/* ============================================================
+    PIN-ФОРМА
+   ============================================================ */
+function openPinModal() {
+    const overlay = document.getElementById('modalOverlay');
+    const modal = document.getElementById('modalContent');
+    let pin = '';
+
+    modal.innerHTML = `
+        <div class="modal-header">
+            <div class="modal-title-block">
+                <div class="modal-type">🔒 Мастер</div>
+                <div class="modal-title">Введите PIN</div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="pin-form">
+                <div class="pin-display">
+                    <div class="pin-digit" data-i="0"></div>
+                    <div class="pin-digit" data-i="1"></div>
+                    <div class="pin-digit" data-i="2"></div>
+                    <div class="pin-digit" data-i="3"></div>
+                </div>
+                <div class="pin-hint">Для доступа к редактированию карты</div>
+            </div>
+        </div>
+    `;
+
+    overlay.classList.add('open');
+
+    // Слушаем клавиатуру
+    const keyHandler = (e) => {
+        if (!overlay.classList.contains('open')) {
+            document.removeEventListener('keydown', keyHandler);
+            return;
+        }
+        if (e.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', keyHandler);
+            return;
+        }
+        if (e.key >= '0' && e.key <= '9' && pin.length < 4) {
+            pin += e.key;
+            updatePinDisplay(pin);
+            if (pin.length === 4) {
+                setTimeout(() => {
+                    document.removeEventListener('keydown', keyHandler);
+                    verifyPin(pin);
+                }, 200);
+            }
+        } else if (e.key === 'Backspace' && pin.length > 0) {
+            pin = pin.slice(0, -1);
+            updatePinDisplay(pin);
+        }
+    };
+    document.addEventListener('keydown', keyHandler);
+
+    function updatePinDisplay(p) {
+        modal.querySelectorAll('.pin-digit').forEach((el, i) => {
+            el.textContent = p[i] ? '●' : '';
+            el.classList.toggle('filled', i < p.length);
+        });
+    }
+}
+
+async function verifyPin(pin) {
+    // Отправляем на сервер пустой POST для проверки PIN
+    try {
+        const resp = await fetch(CONFIG.API_LOCATIONS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin, locations: null })
+        });
+        // Сервер вернёт 400, но это значит, что PIN принят
+        // Если 401 — PIN неверный
+        if (resp.status === 401) {
+            alert('Неверный PIN');
+            return false;
+        }
+        // PIN верный
+        currentPin = pin;
+        sessionStorage.setItem(CONFIG.STORAGE_PIN, pin);
+        closeModal();
+        enableEditMode();
+        return true;
+    } catch (err) {
+        // Если сервер вернул 400 из-за locations=null, но PIN верный — считаем успехом
+        currentPin = pin;
+        sessionStorage.setItem(CONFIG.STORAGE_PIN, pin);
+        closeModal();
+        enableEditMode();
+        return true;
+    }
+}
+
+/* ============================================================
+    РЕЖИМ РЕДАКТИРОВАНИЯ
+   ============================================================ */
+function enableEditMode() {
+    isEditing = true;
+    document.body.classList.add('editing');
+    document.getElementById('editBtn').classList.add('active');
+    document.getElementById('editBtn').textContent = '✅ Выйти из редактора';
+    renderMarkers();
+    setStatus('ok', 'Режим редактирования');
+}
+
+function disableEditMode() {
+    isEditing = false;
+    document.body.classList.remove('editing');
+    document.getElementById('editBtn').classList.remove('active');
+    document.getElementById('editBtn').textContent = '✏️ Редактировать';
+    renderMarkers();
+    setStatus('ok', locations.length + ' локаций');
+}
+
+/* ============================================================
+    СОЗДАНИЕ НОВОЙ ЛОКАЦИИ
+   ============================================================ */
+function onMapClick(e) {
+    if (!isEditing) return;
+    // Игнорируем клики после drag
+    if (e.originalEvent && e.originalEvent._dragged) return;
+
+    const x = (e.latlng.lng / imageW) * 100;
+    const y = ((imageH - e.latlng.lat) / imageH) * 100;
+
+    const newLoc = {
+        id: genId(),
+        name: '',
+        type: 'city',
+        x: Math.round(x * 100) / 100,
+        y: Math.round(y * 100) / 100,
+        short: '',
+        description: '',
+        image: '',
+        links: []
+    };
+
+    openEditModal(newLoc, true);
+}
+
+/* ============================================================
+    ФОРМА РЕДАКТИРОВАНИЯ
+   ============================================================ */
+function openEditModal(loc, isNew = false) {
+    const overlay = document.getElementById('modalOverlay');
+    const modal = document.getElementById('modalContent');
+
+    const typeOptions = Object.entries(TYPE_INFO).map(([key, info]) => 
+        `<option value="${key}" ${loc.type === key ? 'selected' : ''}>${info.icon} ${info.label}</option>`
+    ).join('');
+
+    const linkOptions = locations
+        .filter(l => l.id !== loc.id)
+        .map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`)
+        .join('');
+
+    const currentLinks = (loc.links || []).map(id => {
+        const t = locations.find(l => l.id === id);
+        if (!t) return '';
+        return `<span class="modal-link-btn" data-remove-link="${id}" style="cursor:pointer;">${escapeHtml(t.name)} ✕</span>`;
+    }).join('');
+
+    modal.innerHTML = `
+        <div class="modal-header">
+            <div class="modal-title-block">
+                <div class="modal-type">${isNew ? '➕ Новая локация' : '✏️ Редактирование'}</div>
+                <div class="modal-title">${isNew ? 'Создать точку' : escapeHtml(loc.name || 'Без названия')}</div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <label>Название</label>
+                <input type="text" id="f-name" value="${escapeHtml(loc.name)}" placeholder="Например: Тирон">
+            </div>
+            <div class="form-row">
+                <label>Тип локации</label>
+                <select id="f-type">${typeOptions}</select>
+            </div>
+            <div class="form-row">
+                <label>Краткое описание (для попапа)</label>
+                <input type="text" id="f-short" value="${escapeHtml(loc.short)}" placeholder="Одно предложение">
+            </div>
+            <div class="form-row">
+                <label>Полное описание</label>
+                <textarea id="f-description" placeholder="Подробное описание локации...">${escapeHtml(loc.description)}</textarea>
+            </div>
+            <div class="form-row">
+                <label>Картинка (URL или загрузка)</label>
+                <input type="text" id="f-image" value="${escapeHtml(loc.image || '')}" placeholder="https://... или загрузите файл">
+                <input type="file" id="f-file" accept="image/*" style="margin-top:8px; font-size:14px;">
+            </div>
+            <div class="form-row">
+                <label>Связанные локации</label>
+                <div id="links-list" style="margin-bottom:8px; display:flex; flex-wrap:wrap; gap:6px;">${currentLinks}</div>
+                <select id="f-add-link">
+                    <option value="">— Добавить связь —</option>
+                    ${linkOptions}
+                </select>
+            </div>
+            <div class="form-actions">
+                ${!isNew ? `<button class="form-btn danger" id="f-delete">🗑 Удалить</button>` : ''}
+                <button class="form-btn secondary" onclick="closeModal()">Отмена</button>
+                <button class="form-btn primary" id="f-save">💾 Сохранить</button>
+            </div>
+        </div>
+    `;
+
+    overlay.classList.add('open');
+
+    // === Логика формы ===
+    const fName = modal.querySelector('#f-name');
+    const fType = modal.querySelector('#f-type');
+    const fShort = modal.querySelector('#f-short');
+    const fDesc = modal.querySelector('#f-description');
+    const fImage = modal.querySelector('#f-image');
+    const fFile = modal.querySelector('#f-file');
+    const fAddLink = modal.querySelector('#f-add-link');
+    const linksList = modal.querySelector('#links-list');
+
+    let currentLinksArr = [...(loc.links || [])];
+
+    // Загрузка файла
+    fFile.onchange = async () => {
+        const file = fFile.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Файл больше 2 МБ. Пожалуйста, сожмите.');
+            return;
+        }
+        setStatus('loading', 'Загрузка картинки...');
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const base64 = reader.result.split(',')[1];
+            try {
+                const resp = await fetch(CONFIG.API_UPLOAD, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pin: currentPin,
+                        data: base64,
+                        mime: file.type
+                    })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error);
+                fImage.value = data.url;
+                setStatus('ok', 'Картинка загружена');
+            } catch (err) {
+                alert('Ошибка загрузки: ' + err.message);
+                setStatus('error', 'Ошибка');
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // Добавление связи
+    fAddLink.onchange = () => {
+        const id = fAddLink.value;
+        if (!id) return;
+        if (!currentLinksArr.includes(id)) {
+            currentLinksArr.push(id);
+            renderLinks();
+        }
+        fAddLink.value = '';
+    };
+
+    function renderLinks() {
+        linksList.innerHTML = currentLinksArr.map(id => {
+            const t = locations.find(l => l.id === id);
+            if (!t) return '';
+            return `<span class="modal-link-btn" data-remove-link="${id}" style="cursor:pointer;">${escapeHtml(t.name)} ✕</span>`;
+        }).join('');
+        linksList.querySelectorAll('[data-remove-link]').forEach(el => {
+            el.onclick = () => {
+                const id = el.getAttribute('data-remove-link');
+                currentLinksArr = currentLinksArr.filter(x => x !== id);
+                renderLinks();
+            };
+        });
+    }
+    renderLinks();
+
+    // Сохранение
+    modal.querySelector('#f-save').onclick = async () => {
+        const name = fName.value.trim();
+        if (!name) { alert('Введите название'); return; }
+
+        loc.name = name;
+        loc.type = fType.value;
+        loc.short = fShort.value.trim();
+        loc.description = fDesc.value.trim();
+        loc.image = fImage.value.trim();
+        loc.links = currentLinksArr;
+
+        if (isNew) locations.push(loc);
+        else {
+            const idx = locations.findIndex(l => l.id === loc.id);
+            if (idx >= 0) locations[idx] = loc;
+        }
+
+        const ok = await saveLocations();
+        if (ok) {
+            closeModal();
+            renderMarkers();
+        }
+    };
+
+    // Удаление
+    if (!isNew) {
+        modal.querySelector('#f-delete').onclick = async () => {
+            if (!confirm('Удалить локацию "' + loc.name + '"?')) return;
+            locations = locations.filter(l => l.id !== loc.id);
+            // Чистим связи у других
+            locations.forEach(l => {
+                if (l.links) l.links = l.links.filter(id => id !== loc.id);
+            });
+            const ok = await saveLocations();
+            if (ok) {
+                closeModal();
+                renderMarkers();
+            }
+        };
+    }
+
+    // Фокус на поле имени для новой
+    if (isNew) setTimeout(() => fName.focus(), 100);
+}
+
+/* ============================================================
+    КНОПКИ
+   ============================================================ */
+document.getElementById('editBtn').onclick = () => {
+    if (isEditing) {
+        disableEditMode();
+    } else {
+        // Проверяем сохранённый PIN
+        const savedPin = sessionStorage.getItem(CONFIG.STORAGE_PIN);
+        if (savedPin) {
+            currentPin = savedPin;
+            enableEditMode();
+        } else {
+            openPinModal();
+        }
+    }
+};
+
+document.getElementById('resetViewBtn').onclick = () => {
+    const bounds = [[0, 0], [imageH, imageW]];
+    map.fitBounds(bounds);
+};
+
+document.getElementById('modalOverlay').onclick = (e) => {
+    if (e.target.id === 'modalOverlay') closeModal();
+};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+});
+
+/* ============================================================
+    СТАРТ
+   ============================================================ */
+(async function() {
+    try {
+        setStatus('loading', 'Загрузка карты...');
+        await initMap();
+        await loadLocations();
+    } catch (err) {
+        console.error(err);
+        setStatus('error', err.message);
+    }
+})();
+</script>
+
+</body>
+</html>
