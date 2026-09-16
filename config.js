@@ -4,37 +4,27 @@
 
 window.MORION_CONFIG = {
 
-    // === РАЗМЕРЫ ОРИГИНАЛЬНОЙ КАРТЫ (в пикселях) ===
     IMAGE_WIDTH: 18432,
     IMAGE_HEIGHT: 12288,
     TILE_SIZE: 256,
 
-    // === ПУТЬ К НАРЕЗАННЫМ ТАЙЛАМ ===
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
     MAX_NATIVE_ZOOM: 6,
 
-    // === СТАРТОВЫЙ ВИД ===
     START_X_PERCENT: 50,
     START_Y_PERCENT: 50,
     START_ZOOM: 4,
 
-    // === API ===
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
     STORAGE_PIN: 'morion_pin',
 
-    // ============================================================
-    //  ТИПЫ ЗАПИСЕЙ
-    // ============================================================
     KIND_INFO: {
         location:    { icon: '📍', label: 'Локация на карте' },
-        sublocation: { icon: '🏛', label: 'Подлокация (внутри локации)' },
+        sublocation: { icon: '🏛', label: 'Подлокация' },
         faction:     { icon: '⚔️', label: 'Фракция' }
     },
 
-    // ============================================================
-    //  ТИПЫ ЛОКАЦИЙ (для kind = 'location')
-    // ============================================================
     LOCATION_TYPES: {
         capital:  { icon: '🏰', label: 'Столица',      css: 'marker-capital' },
         city:     { icon: '🏘️', label: 'Город',        css: '' },
@@ -49,9 +39,6 @@ window.MORION_CONFIG = {
         gate:     { icon: '🚪', label: 'Врата',        css: '' }
     },
 
-    // ============================================================
-    //  ТИПЫ ПОДЛОКАЦИЙ (для kind = 'sublocation')
-    // ============================================================
     SUBLOCATION_TYPES: {
         district:  { icon: '🏛', label: 'Район' },
         building:  { icon: '🏰', label: 'Здание' },
@@ -65,9 +52,6 @@ window.MORION_CONFIG = {
         landmark:  { icon: '🗿', label: 'Достопримечательность' }
     },
 
-    // ============================================================
-    //  ТИПЫ ФРАКЦИЙ (для kind = 'faction')
-    // ============================================================
     FACTION_TYPES: {
         guild:      { icon: '⚒️', label: 'Гильдия' },
         order:      { icon: '⚔️', label: 'Орден' },
