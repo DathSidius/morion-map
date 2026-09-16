@@ -300,7 +300,8 @@ const CONFIG = {
     IMAGE_WIDTH: 18432,
     IMAGE_HEIGHT: 12288,
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
-    MAX_ZOOM: 6,
+    MAX_NATIVE_ZOOM: 6,
+    MAX_ZOOM: 7,
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
     STORAGE_PIN: 'morion_pin'
@@ -346,16 +347,16 @@ function genId() {
 
 /* ============================================================
     КОНВЕРТАЦИЯ КООРДИНАТ
-    imageX, imageY — от ЛЕВОГО ВЕРХНЕГО угла картинки (0..W, 0..H)
-    Leaflet CRS.Simple — координаты [y, x] где y идёт СНИЗУ ВВЕРХ
+    imageXY — от ЛЕВОГО ВЕРХНЕГО угла картинки (0..W, 0..H)
+    Leaflet CRS.Simple — [lat, lng], где lng = x, lat = H - y
    ============================================================ */
 function imageToLeaflet(x, y) {
     return [CONFIG.IMAGE_HEIGHT - y, x];
 }
 function leafletToImage(latlng) {
     return {
-        x: latlng.lng,
-        y: CONFIG.IMAGE_HEIGHT - latlng.lat
+        x: Math.round(latlng.lng),
+        y: Math.round(CONFIG.IMAGE_HEIGHT - latlng.lat)
     };
 }
 
@@ -363,10 +364,12 @@ function leafletToImage(latlng) {
     ИНИЦИАЛИЗАЦИЯ КАРТЫ
    ============================================================ */
 function initMap() {
-    const H = CONFIG.IMAGE_HEIGHT;
     const W = CONFIG.IMAGE_WIDTH;
+    const H = CONFIG.IMAGE_HEIGHT;
     const bounds = [[0, 0], [H, W]];
 
+    // Устанавливаем центр мира в центр карты через CRS.Simple + кастомный origin
+    // Для этого используется L.CRS.Simple с преобразованием LatLng по умолчанию
     map = L.map('map', {
         crs: L.CRS.Simple,
         minZoom: 0,
@@ -374,26 +377,41 @@ function initMap() {
         zoomSnap: 0.25,
         zoomDelta: 0.5,
         attributionControl: false,
-        zoomControl: false
+        zoomControl: false,
+        maxBounds: [[-H, -W], [H * 2, W * 2]],  // разрешаем смотреть чуть за карту
+        maxBoundsViscosity: 0.7
     });
 
-    L.tileLayer(CONFIG.TILES_PATH, {
+    const tileLayer = L.tileLayer(CONFIG.TILES_PATH, {
         tileSize: 256,
         noWrap: true,
-        bounds: bounds,
+        bounds: L.latLngBounds([[0, 0], [H, W]]),
         minNativeZoom: 0,
-        maxNativeZoom: CONFIG.MAX_ZOOM,
+        maxNativeZoom: CONFIG.MAX_NATIVE_ZOOM,
         minZoom: 0,
         maxZoom: CONFIG.MAX_ZOOM,
-        tms: false
-    }).addTo(map);
+        tms: false,
+        keepBuffer: 2,
+        updateWhenIdle: false,
+        updateWhenZooming: false
+    });
 
+    // Логируем, какие тайлы грузятся (для отладки)
+    tileLayer.on('tileerror', (e) => {
+        // Не спамим консоль
+    });
+
+    tileLayer.addTo(map);
+
+    // fitBounds подберёт правильный зум для показа всей карты
     map.fitBounds(bounds);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     map.on('click', onMapClick);
     window.addEventListener('resize', () => map.invalidateSize());
+
+    console.log('Карта инициализирована:', { W, H, nativeZoom: CONFIG.MAX_NATIVE_ZOOM });
 }
 
 /* ============================================================
@@ -480,8 +498,8 @@ function renderMarkers() {
             marker.on('dragend', (e) => {
                 const pos = e.target.getLatLng();
                 const coords = leafletToImage(pos);
-                loc.x = Math.round(coords.x);
-                loc.y = Math.round(coords.y);
+                loc.x = coords.x;
+                loc.y = coords.y;
                 saveLocations();
             });
             marker.on('click', (e) => {
@@ -683,7 +701,7 @@ function onMapClick(e) {
     const newLoc = {
         id: genId(),
         name: '', type: 'city',
-        x: Math.round(coords.x), y: Math.round(coords.y),
+        x: coords.x, y: coords.y,
         short: '', description: '', image: '', links: []
     };
     openEditModal(newLoc, true);
