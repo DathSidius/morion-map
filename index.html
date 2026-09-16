@@ -301,10 +301,16 @@ const CONFIG = {
     TILES_PATH: 'tiles/{z}/{x}/{y}.png',
     MAX_NATIVE_ZOOM: 6,
 
-    // Режим стартового вида и кнопки "Обзор":
-    //  'fit-all'      — вся карта целиком, с полями по бокам (карта мелкая)
-    //  'fill-width'   — заполняет по ширине, верх/низ обрезаны (карта крупная) ← используем это
-    //  'fill-screen'  — заполняет весь экран по обеим осям
+    // === СТАРТОВЫЙ ВИД ===
+    // START_ZOOM_MODE:
+    //   'auto'  — зум подбирается под размер экрана (режим START_VIEW)
+    //   число   — фиксированный зум (например 2.75)
+    START_ZOOM_MODE: 'auto',
+
+    // Если START_ZOOM_MODE = 'auto':
+    //   'fit-all'      — вся карта целиком (мелкая)
+    //   'fill-width'   — заполняет по ширине (крупная) ← используется
+    //   'fill-screen'  — заполняет весь экран (максимально крупная)
     START_VIEW: 'fill-width',
 
     API_LOCATIONS: '/api/locations',
@@ -368,26 +374,25 @@ function applyStartView(animate) {
 
     let targetZoom;
 
-    if (CONFIG.START_VIEW === 'fit-all') {
-        // Вписать всю карту — берём меньший зум
-        const zX = Math.log2(size.x / W) + maxZoom;
-        const zY = Math.log2(size.y / H) + maxZoom;
-        targetZoom = Math.min(zX, zY);
-    } else if (CONFIG.START_VIEW === 'fill-width') {
-        // Заполнить по ширине — берём зум по ширине
-        targetZoom = Math.log2(size.x / W) + maxZoom;
-    } else { // 'fill-screen'
-        // Заполнить весь экран — берём больший из двух
-        const zX = Math.log2(size.x / W) + maxZoom;
-        const zY = Math.log2(size.y / H) + maxZoom;
-        targetZoom = Math.max(zX, zY);
+    if (typeof CONFIG.START_ZOOM_MODE === 'number') {
+        targetZoom = CONFIG.START_ZOOM_MODE;
+    } else {
+        if (CONFIG.START_VIEW === 'fit-all') {
+            const zX = Math.log2(size.x / W) + maxZoom;
+            const zY = Math.log2(size.y / H) + maxZoom;
+            targetZoom = Math.min(zX, zY);
+        } else if (CONFIG.START_VIEW === 'fill-width') {
+            targetZoom = Math.log2(size.x / W) + maxZoom;
+        } else { // 'fill-screen'
+            const zX = Math.log2(size.x / W) + maxZoom;
+            const zY = Math.log2(size.y / H) + maxZoom;
+            targetZoom = Math.max(zX, zY);
+        }
     }
 
-    // Ограничиваем зум
     targetZoom = Math.min(Math.max(targetZoom, 0), maxZoom);
-
     map.setView(center, targetZoom, { animate: !!animate });
-    console.log('View applied. Mode:', CONFIG.START_VIEW, '| Zoom:', targetZoom);
+    console.log('View applied. Mode:', CONFIG.START_ZOOM_MODE, '| View:', CONFIG.START_VIEW, '| Zoom:', targetZoom);
 }
 
 /* ============================================================
@@ -424,18 +429,17 @@ function initMap() {
         updateWhenIdle: false
     });
 
-    // Гасим ошибки тайлов вне карты, чтобы не спамить в Console
+    // Гасим ошибки тайлов вне карты
     tileLayer.on('tileerror', function() {});
 
     tileLayer.addTo(map);
 
-    // Устанавливаем стартовый вид
+    // Стартовый вид
     applyStartView(false);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.on('click', onMapClick);
 
-    // При ресайзе окна — пересчитываем вид, если карта ещё в стартовом положении
     window.addEventListener('resize', () => {
         map.invalidateSize();
     });
@@ -915,7 +919,6 @@ document.getElementById('editBtn').onclick = () => {
 };
 
 document.getElementById('resetViewBtn').onclick = () => {
-    // Возврат к стартовому виду — плавно
     applyStartView(true);
 };
 
