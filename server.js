@@ -14,11 +14,10 @@ if (!process.env.DATABASE_URL) {
     process.exit(1);
 }
 
+// На RelaxDev PostgreSQL находится внутри частной сети, SSL не нужен
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL.includes('localhost')
-        ? false
-        : { rejectUnauthorized: false }
+    ssl: false
 });
 
 // --- Инициализация схемы ---
@@ -49,7 +48,6 @@ app.use(express.json({ limit: '10mb' }));
 //  ЛОКАЦИИ
 // ============================================================
 
-// Получить все локации и фракции
 app.get('/api/locations', async (req, res) => {
     try {
         const result = await pool.query(
@@ -62,7 +60,6 @@ app.get('/api/locations', async (req, res) => {
     }
 });
 
-// Сохранить все локации (полная перезапись, в транзакции)
 app.post('/api/locations', async (req, res) => {
     const { pin, locations } = req.body;
     if (pin !== EDIT_PIN) return res.status(401).json({ error: 'Неверный PIN' });
@@ -100,7 +97,7 @@ app.post('/api/locations', async (req, res) => {
 });
 
 // ============================================================
-//  КАРТИНКИ (хранятся в БД, чтобы не теряться при деплое)
+//  КАРТИНКИ
 // ============================================================
 
 app.post('/api/upload', async (req, res) => {
@@ -114,7 +111,6 @@ app.post('/api/upload', async (req, res) => {
         const id = 'img-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
         const buffer = Buffer.from(data, 'base64');
 
-        // Ограничим размер: 5 МБ
         if (buffer.length > 5 * 1024 * 1024) {
             return res.status(413).json({ error: 'Файл больше 5 МБ' });
         }
