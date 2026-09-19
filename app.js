@@ -90,7 +90,7 @@ function migrateLocations() {
 }
 
 // ============================================================
-//  ПОСТРОЕНИЕ HTML МАРКЕРА (со спрайтом или emoji)
+//  ПОСТРОЕНИЕ HTML МАРКЕРА (PNG-иконка или emoji)
 // ============================================================
 function buildMarkerHtml(info) {
     const css = info.css || '';
@@ -99,10 +99,6 @@ function buildMarkerHtml(info) {
     if (info.image) {
         return `<div class="marker-icon ${css}"><img src="${info.image}" alt="" draggable="false"></div>`;
     }
-    return `<div class="marker-icon ${css}">${emoji}</div>`;
-}
-
-    // Fallback — emoji
     return `<div class="marker-icon ${css}">${emoji}</div>`;
 }
 
@@ -210,9 +206,9 @@ function renderMarkers() {
         const icon = L.divIcon({
             className: 'custom-marker',
             html: buildMarkerHtml(info),
-            iconSize: [48, 48],
-            iconAnchor: [24, 48],
-            popupAnchor: [0, -44]
+            iconSize: [56, 56],
+            iconAnchor: [28, 56],
+            popupAnchor: [0, -52]
         });
 
         const marker = L.marker(latlng, { icon, draggable: isEditing }).addTo(map);

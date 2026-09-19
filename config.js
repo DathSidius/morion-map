@@ -26,23 +26,23 @@ window.MORION_CONFIG = {
     },
 
     // ============================================================
-    //  ТИПЫ ЛОКАЦИЙ
+    //  ТИПЫ ЛОКАЦИЙ — имена совпадают с файлами в icons/
     // ============================================================
     LOCATION_TYPES: {
-        capital:  { image: 'icons/capital.png',  emoji: '🏰', label: 'Столица' },
-        city:     { image: 'icons/city.png',     emoji: '🏘️', label: 'Город' },
-        town:     { image: 'icons/town.png',     emoji: '🏘️', label: 'Городок' },
-        fortress: { image: 'icons/fortress.png', emoji: '⚔️', label: 'Крепость' },
-        tower:    { image: 'icons/tower.png',    emoji: '🗼', label: 'Башня' },
-        village:  { image: 'icons/village.png',  emoji: '🛖', label: 'Деревня' },
-        hamlet:   { image: 'icons/hamlet.png',   emoji: '🛖', label: 'Хутор' },
-        gate:     { image: 'icons/gate.png',     emoji: '🚪', label: 'Врата' },
-        port:     { image: 'icons/port.png',     emoji: '⚓', label: 'Порт' },
-        ruins:    { image: 'icons/ruins.png',    emoji: '🏚️', label: 'Руины' },
-        mountain: { image: 'icons/mountain.png', emoji: '⛰️', label: 'Гора' },
-        forest:   { image: 'icons/forest.png',   emoji: '🌲', label: 'Лес' },
-        region:   { image: 'icons/region.png',   emoji: '📜', label: 'Регион' },
-        dark:     { image: 'icons/dark.png',     emoji: '💀', label: 'Тёмное место' }
+        capital:  { image: 'icons/capital.png',    emoji: '🏰', label: 'Столица' },
+        city:     { image: 'icons/city.png',       emoji: '🏘️', label: 'Город' },
+        town:     { image: 'icons/town.png',       emoji: '🏘️', label: 'Городок' },
+        fortress: { image: 'icons/fortress.png',   emoji: '⚔️', label: 'Крепость' },
+        tower:    { image: 'icons/Tower.png',      emoji: '🗼', label: 'Башня' },
+        village:  { image: 'icons/village.png',    emoji: '🛖', label: 'Деревня' },
+        hamlet:   { image: 'icons/village.png',    emoji: '🛖', label: 'Хутор' },
+        gate:     { image: 'icons/gate.png',       emoji: '🚪', label: 'Врата' },
+        port:     { image: 'icons/lighthouse.png', emoji: '⚓', label: 'Порт' },
+        ruins:    { image: 'icons/ruins.png',      emoji: '🏚️', label: 'Руины' },
+        mountain: { image: 'icons/mountain.png',   emoji: '⛰️', label: 'Гора' },
+        forest:   { image: 'icons/forest.png',     emoji: '🌲', label: 'Лес' },
+        region:   { image: 'icons/region.png',     emoji: '📜', label: 'Регион' },
+        dark:     { image: 'icons/dark.png',       emoji: '💀', label: 'Тёмное место' }
     },
 
     SUBLOCATION_TYPES: {
