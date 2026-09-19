@@ -917,6 +917,22 @@ body.editing .custom-marker { cursor: move; }
     opacity: 0.3;
 }
 
+/* ============================================================
+   ВИНЬЕТКА — затемнение по краям экрана
+   ============================================================ */
+.vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 350;
+    background: radial-gradient(
+        ellipse at center,
+        transparent 55%,
+        rgba(0, 0, 0, 0.35) 85%,
+        rgba(0, 0, 0, 0.7) 100%
+    );
+}
+
 @media (max-width: 768px) {
     .top-title { font-size: 15px; padding: 8px 14px; }
     .map-btn { padding: 8px 12px; font-size: 12px; }
