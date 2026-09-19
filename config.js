@@ -17,6 +17,8 @@ window.MORION_CONFIG = {
 
     API_LOCATIONS: '/api/locations',
     API_UPLOAD: '/api/upload',
+    API_BACKUP: '/api/backup',
+    API_RESTORE: '/api/restore',
     STORAGE_PIN: 'morion_pin',
 
     KIND_INFO: {

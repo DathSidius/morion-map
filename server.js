@@ -8,7 +8,6 @@ const PORT = process.env.PORT || 3000;
 const EDIT_PIN = process.env.EDIT_PIN || '1488';
 
 // --- Подключение к PostgreSQL ---
-// RelaxDev сам передаст строку подключения через переменную DATABASE_URL
 if (!process.env.DATABASE_URL) {
     console.error('Нет DATABASE_URL. Включи базу данных в настройках проекта RelaxDev.');
     process.exit(1);
@@ -42,7 +41,7 @@ async function initDatabase() {
     console.log('Таблицы locations и images готовы.');
 }
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 // ============================================================
 //  ЛОКАЦИИ
@@ -146,6 +145,86 @@ app.get('/api/image/:id', async (req, res) => {
 });
 
 // ============================================================
+//  БЭКАП И ВОССТАНОВЛЕНИЕ
+// ============================================================
+
+app.get('/api/backup', async (req, res) => {
+    const pin = req.query.pin;
+    if (pin !== EDIT_PIN) return res.status(401).json({ error: 'Неверный PIN' });
+
+    try {
+        const locRes = await pool.query('SELECT data FROM locations ORDER BY updated_at DESC');
+        const imgRes = await pool.query('SELECT id, mime, data FROM images');
+
+        const backup = {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            locationsCount: locRes.rows.length,
+            imagesCount: imgRes.rows.length,
+            locations: locRes.rows.map(r => r.data),
+            images: imgRes.rows.map(r => ({
+                id: r.id,
+                mime: r.mime,
+                data: r.data.toString('base64')
+            }))
+        };
+
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        res.set('Content-Type', 'application/json; charset=utf-8');
+        res.set('Content-Disposition', `attachment; filename="morion-backup-${stamp}.json"`);
+        res.send(JSON.stringify(backup, null, 2));
+    } catch (err) {
+        console.error('GET /api/backup:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/restore', async (req, res) => {
+    const { pin, backup } = req.body;
+    if (pin !== EDIT_PIN) return res.status(401).json({ error: 'Неверный PIN' });
+
+    if (!backup || !Array.isArray(backup.locations)) {
+        return res.status(400).json({ error: 'Некорректный файл бэкапа: нет массива locations' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM locations');
+        await client.query('DELETE FROM images');
+
+        for (const loc of backup.locations) {
+            await client.query(
+                'INSERT INTO locations (id, kind, name, data) VALUES ($1, $2, $3, $4)',
+                [loc.id, loc.kind || 'location', loc.name || '', JSON.stringify(loc)]
+            );
+        }
+
+        if (Array.isArray(backup.images)) {
+            for (const img of backup.images) {
+                await client.query(
+                    'INSERT INTO images (id, mime, data) VALUES ($1, $2, $3)',
+                    [img.id, img.mime, Buffer.from(img.data, 'base64')]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({
+            ok: true,
+            locations: backup.locations.length,
+            images: (backup.images || []).length
+        });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('POST /api/restore:', err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+// ============================================================
 //  СТАТИКА И SPA FALLBACK
 // ============================================================
 
@@ -169,4 +248,3 @@ initDatabase()
         console.error('Не удалось запустить сервер:', err);
         process.exit(1);
     });
-    //

@@ -620,6 +620,10 @@ function enableEditMode() {
         editBtn.classList.add('active');
         editBtn.textContent = '✅ Выйти из редактора';
     }
+    const backupBtn = document.getElementById('backupBtn');
+    const restoreBtn = document.getElementById('restoreBtn');
+    if (backupBtn) backupBtn.style.display = 'flex';
+    if (restoreBtn) restoreBtn.style.display = 'flex';
     renderMarkers();
     setStatus('ok', 'Режим редактирования');
 }
@@ -632,6 +636,10 @@ function disableEditMode() {
         editBtn.classList.remove('active');
         editBtn.textContent = '✏️ Редактировать';
     }
+    const backupBtn = document.getElementById('backupBtn');
+    const restoreBtn = document.getElementById('restoreBtn');
+    if (backupBtn) backupBtn.style.display = 'none';
+    if (restoreBtn) restoreBtn.style.display = 'none';
     renderMarkers();
     setStatus('ok', 'Просмотр');
 }
@@ -651,6 +659,143 @@ function onMapClick(e) {
         short: '', description: '', image: '', links: []
     };
     openLocationEditor(newLoc, true);
+}
+
+/* ===== БЭКАП И ВОССТАНОВЛЕНИЕ ===== */
+
+async function downloadBackup() {
+    if (!currentPin) { alert('Сначала введите PIN'); return; }
+    setStatus('loading', 'Готовим бэкап...');
+
+    try {
+        const url = CONFIG.API_BACKUP + '?pin=' + encodeURIComponent(currentPin);
+        const resp = await fetch(url);
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.error || 'HTTP ' + resp.status);
+        }
+
+        const blob = await resp.blob();
+        const urlObj = URL.createObjectURL(blob);
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        const a = document.createElement('a');
+        a.href = urlObj;
+        a.download = 'morion-backup-' + stamp + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(urlObj);
+
+        setStatus('ok', 'Бэкап скачан');
+    } catch (err) {
+        console.error(err);
+        setStatus('error', 'Ошибка бэкапа');
+        alert('Не удалось скачать бэкап: ' + err.message);
+    }
+}
+
+function openRestoreDialog() {
+    if (!currentPin) { alert('Сначала введите PIN'); return; }
+
+    setModal(`
+        <div class="modal-header">
+            <div class="modal-title-block">
+                <div class="modal-type">📥 Восстановление</div>
+                <div class="modal-title">Загрузить бэкап</div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="tab-panel active">
+                <div class="empty-state" style="text-align:left; border-style:solid;">
+                    <strong>⚠️ Внимание!</strong><br>
+                    Все текущие локации и картинки в базе будут <strong>удалены</strong> и заменены содержимым файла.<br>
+                    Убедись, что у тебя есть свежий бэкап, если что-то пойдёт не так.
+                </div>
+                <div class="form-row" style="margin-top:16px;">
+                    <label>Файл бэкапа (.json)</label>
+                    <input type="file" id="restore-file" accept="application/json,.json" style="margin-top:8px;">
+                </div>
+                <div id="restore-preview" style="margin-top:12px;"></div>
+                <div class="form-actions">
+                    <button class="form-btn secondary" onclick="closeModal()">Отмена</button>
+                    <button class="form-btn primary" id="restore-go" disabled>📥 Восстановить</button>
+                </div>
+            </div>
+        </div>
+    `);
+
+    const modal = document.getElementById('modalContent');
+    const fileInput = modal.querySelector('#restore-file');
+    const preview = modal.querySelector('#restore-preview');
+    const goBtn = modal.querySelector('#restore-go');
+
+    let parsedBackup = null;
+
+    fileInput.onchange = () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const data = JSON.parse(reader.result);
+                if (!data || !Array.isArray(data.locations)) {
+                    throw new Error('Нет массива locations в файле');
+                }
+                parsedBackup = data;
+
+                const locs = data.locations.length;
+                const imgs = Array.isArray(data.images) ? data.images.length : 0;
+                const when = data.exportedAt ? new Date(data.exportedAt).toLocaleString('ru') : '—';
+
+                preview.innerHTML = `
+                    <div class="empty-state" style="text-align:left;">
+                        ✅ Файл валиден.<br>
+                        <strong>Локаций:</strong> ${locs}<br>
+                        <strong>Картинок:</strong> ${imgs}<br>
+                        <strong>Дата экспорта:</strong> ${when}
+                    </div>
+                `;
+                goBtn.disabled = false;
+            } catch (err) {
+                parsedBackup = null;
+                preview.innerHTML = `<div class="empty-state" style="text-align:left; color:var(--accent);">❌ Ошибка: ${escapeHtml(err.message)}</div>`;
+                goBtn.disabled = true;
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    goBtn.onclick = async () => {
+        if (!parsedBackup) return;
+        if (!confirm('Точно восстановить? Текущие данные будут стёрты.')) return;
+
+        goBtn.disabled = true;
+        goBtn.textContent = '⏳ Восстановление...';
+        setStatus('loading', 'Восстановление...');
+
+        try {
+            const resp = await fetch(CONFIG.API_RESTORE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin: currentPin, backup: parsedBackup })
+            });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+
+            closeModal();
+            await loadLocations();
+            setStatus('ok', `Восстановлено: ${data.locations} локаций, ${data.images} картинок`);
+            alert('Восстановление завершено.');
+        } catch (err) {
+            console.error(err);
+            setStatus('error', 'Ошибка восстановления');
+            alert('Ошибка: ' + err.message);
+            goBtn.disabled = false;
+            goBtn.textContent = '📥 Восстановить';
+        }
+    };
 }
 
 /* ===== КНОПКИ ===== */
@@ -674,6 +819,16 @@ if (resetBtn) {
 const facBtn = document.getElementById('factionsBtn');
 if (facBtn) {
     facBtn.onclick = () => openFactionsLibrary();
+}
+
+const backupBtn = document.getElementById('backupBtn');
+if (backupBtn) {
+    backupBtn.onclick = () => downloadBackup();
+}
+
+const restoreBtn = document.getElementById('restoreBtn');
+if (restoreBtn) {
+    restoreBtn.onclick = () => openRestoreDialog();
 }
 
 const overlayEl = document.getElementById('modalOverlay');
