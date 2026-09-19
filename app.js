@@ -1,5 +1,5 @@
 /* ============================================================
-   ЛОГИКА КАРТЫ МОРРИОНА — ЧАСТЬ 1 (ядро, карта, модалки, панели)
+   ЛОГИКА КАРТЫ МОРРИОНА — ЧАСТЬ 1
    ============================================================ */
 
 const CONFIG = window.MORION_CONFIG;
@@ -14,9 +14,7 @@ let markers = {};
 let isEditing = false;
 let currentPin = '';
 
-/* ============================================================
-   УТИЛИТЫ
-   ============================================================ */
+/* ===== УТИЛИТЫ ===== */
 function setStatus(state, text) {
     const bar = document.getElementById('statusBar');
     if (!bar) return;
@@ -97,9 +95,7 @@ function migrateLocations() {
     });
 }
 
-/* ============================================================
-   ПОСТРОЕНИЕ HTML МАРКЕРА
-   ============================================================ */
+/* ===== ПОСТРОЕНИЕ HTML МАРКЕРА ===== */
 function buildMarkerHtml(info) {
     const css = info.css || '';
     const emoji = info.emoji || info.icon || '';
@@ -110,9 +106,7 @@ function buildMarkerHtml(info) {
     return `<div class="marker-icon ${css}">${emoji}</div>`;
 }
 
-/* ============================================================
-   КАРТА
-   ============================================================ */
+/* ===== КАРТА ===== */
 function applyStartView(animate) {
     const px = CONFIG.START_X_PERCENT / 100 * CONFIG.IMAGE_WIDTH;
     const py = CONFIG.START_Y_PERCENT / 100 * CONFIG.IMAGE_HEIGHT;
@@ -151,9 +145,7 @@ function initMap() {
     window.addEventListener('resize', () => map.invalidateSize());
 }
 
-/* ============================================================
-   ЗАГРУЗКА / СОХРАНЕНИЕ
-   ============================================================ */
+/* ===== ЗАГРУЗКА / СОХРАНЕНИЕ ===== */
 async function loadLocations() {
     setStatus('loading', 'Загрузка...');
     try {
@@ -214,9 +206,7 @@ async function saveLocations() {
     }
 }
 
-/* ============================================================
-   МАРКЕРЫ
-   ============================================================ */
+/* ===== МАРКЕРЫ ===== */
 function renderMarkers() {
     Object.values(markers).forEach(m => map.removeLayer(m));
     markers = {};
@@ -293,9 +283,7 @@ function buildPopupHtml(loc) {
     `;
 }
 
-/* ============================================================
-   МОДАЛКА
-   ============================================================ */
+/* ===== МОДАЛКА ===== */
 function closeModal() {
     const overlay = document.getElementById('modalOverlay');
     if (overlay) overlay.classList.remove('open');
@@ -328,9 +316,7 @@ function formatDescription(text) {
     return escapeHtml(text).replace(/\n/g, '<br>');
 }
 
-/* ============================================================
-   ПРОСМОТР ЛОКАЦИИ
-   ============================================================ */
+/* ===== ПРОСМОТР ЛОКАЦИИ ===== */
 function openLocationViewer(loc, activeTab) {
     const info = getTypeInfo(loc);
     if (!activeTab) activeTab = 'desc';
@@ -381,9 +367,7 @@ function openLocationViewer(loc, activeTab) {
     bindTabs(document.getElementById('modalContent'));
 }
 
-/* ============================================================
-   РЕДАКТОР ЛОКАЦИИ
-   ============================================================ */
+/* ===== РЕДАКТОР ЛОКАЦИИ ===== */
 function openLocationEditor(loc, isNew, activeTab) {
     if (!isEditing) return;
     const info = getTypeInfo(loc);
@@ -424,9 +408,7 @@ function openLocationEditor(loc, isNew, activeTab) {
     bindDescPanel(loc, isNew);
 }
 
-/* ============================================================
-   ПАНЕЛИ
-   ============================================================ */
+/* ===== ПАНЕЛИ ===== */
 function renderDescPanel(loc, editable, isNew) {
     if (isNew === undefined) isNew = false;
     const isFaction = loc.kind === 'faction';

@@ -30,7 +30,7 @@ window.MORION_CONFIG = {
         city:     { image: 'icons/city.png',       emoji: '🏘️', label: 'Город' },
         town:     { image: 'icons/town.png',       emoji: '🏘️', label: 'Городок' },
         fortress: { image: 'icons/fortress.png',   emoji: '⚔️', label: 'Крепость' },
-        tower:    { image: 'icons/tower.png',      emoji: '🗼', label: 'Башня' },
+        tower:    { image: 'icons/Tower.png',      emoji: '🗼', label: 'Башня' },
         village:  { image: 'icons/village.png',    emoji: '🛖', label: 'Деревня' },
         hamlet:   { image: 'icons/village.png',    emoji: '🛖', label: 'Хутор' },
         gate:     { image: 'icons/gate.png',       emoji: '🚪', label: 'Врата' },
