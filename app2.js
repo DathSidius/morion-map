@@ -178,7 +178,7 @@ function openFactionsLibrary() {
                         <div class="item-subtitle">${info.label}</div>
                         <div class="item-short">${basesText}</div>
                     </div>
-                    ${actions || '<div class="item-arrow" style="color:var(--ink-muted);font-size:18px;align-self:center;">›</div>'}
+                    ${actions || '<div class="item-arrow" style="color:var(--text-muted);font-size:18px;align-self:center;">›</div>'}
                 </div>`;
         });
         html += '</div>';
@@ -259,7 +259,7 @@ function openFactionEditor(fac, isNew, backToLocId) {
             return `<span class="modal-link-btn" style="${isEditing ? '' : 'cursor:pointer;'}" onclick="${isEditing ? '' : `closeModal(); openLocationViewer(findById('${b.id}'))`}">${bInfo.icon} ${escapeHtml(b.name)} ${removeBtn}</span>`;
         }).join('');
     } else {
-        basesHtml = '<span style="color:var(--ink-muted); font-style:italic; font-size:14px;">Нет привязки к локациям</span>';
+        basesHtml = '<span style="color:var(--text-muted); font-style:italic; font-size:14px;">Нет привязки к локациям</span>';
     }
 
     let addBaseSelect = '';
@@ -529,6 +529,98 @@ document.addEventListener('change', async (e) => {
     }
 });
 
+/* ===== БОКОВАЯ ПАНЕЛЬ ЛОКАЦИЙ ===== */
+
+let sidebarQuery = '';
+
+function toggleSidebar(forceState) {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    const willOpen = forceState !== undefined
+        ? forceState
+        : !sidebar.classList.contains('open');
+
+    sidebar.classList.toggle('open', willOpen);
+
+    const btn = document.getElementById('sidebarBtn');
+    if (btn) btn.classList.toggle('active', willOpen);
+
+    if (willOpen) {
+        setTimeout(() => {
+            const inp = document.getElementById('sidebarSearch');
+            if (inp && !sidebarQuery) inp.focus();
+        }, 350);
+    }
+}
+
+function renderSidebarList() {
+    const list = document.getElementById('sidebarList');
+    if (!list) return;
+
+    const q = sidebarQuery.trim().toLowerCase();
+
+    const items = locations
+        .filter(l => l.kind === 'location')
+        .filter(l => {
+            if (!q) return true;
+            const name = (l.name || '').toLowerCase();
+            const short = (l.short || '').toLowerCase();
+            return name.includes(q) || short.includes(q);
+        })
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
+
+    if (!items.length) {
+        list.innerHTML = `
+            <div class="sidebar-empty">
+                <span class="empty-icon">🔍</span>
+                ${q ? 'Ничего не найдено' : 'Локаций пока нет'}
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = items.map(loc => {
+        const info = getTypeInfo(loc);
+        const emoji = info.emoji || info.icon || '📍';
+        const icon = info.image
+            ? `<img src="${info.image}" alt="" onerror="this.style.display='none'; this.parentNode.textContent='${emoji}';">`
+            : emoji;
+        return `
+            <div class="sidebar-item" data-loc-id="${loc.id}">
+                <div class="sidebar-item-icon">${icon}</div>
+                <div class="sidebar-item-content">
+                    <div class="sidebar-item-name">${escapeHtml(loc.name || 'Без названия')}</div>
+                    <div class="sidebar-item-type">${escapeHtml(info.label || '')}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    list.querySelectorAll('.sidebar-item').forEach(el => {
+        el.onclick = () => focusLocationOnMap(el.getAttribute('data-loc-id'));
+    });
+}
+
+function focusLocationOnMap(locId) {
+    const loc = findById(locId);
+    if (!loc) return;
+
+    const marker = markers[locId];
+    if (!marker) return;
+
+    const targetZoom = Math.max(map.getZoom(), 4);
+    map.flyTo(marker.getLatLng(), targetZoom, { duration: 0.8 });
+
+    setTimeout(() => {
+        marker.openPopup();
+    }, 850);
+
+    document.querySelectorAll('.sidebar-item').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-loc-id') === locId);
+    });
+}
+
 /* ===== PIN ===== */
 function openPinModal() {
     let pin = '';
@@ -760,7 +852,7 @@ function openRestoreDialog() {
                 goBtn.disabled = false;
             } catch (err) {
                 parsedBackup = null;
-                preview.innerHTML = `<div class="empty-state" style="text-align:left; color:var(--accent);">❌ Ошибка: ${escapeHtml(err.message)}</div>`;
+                preview.innerHTML = `<div class="empty-state" style="text-align:left; color:var(--danger);">❌ Ошибка: ${escapeHtml(err.message)}</div>`;
                 goBtn.disabled = true;
             }
         };
@@ -831,6 +923,24 @@ if (restoreBtn) {
     restoreBtn.onclick = () => openRestoreDialog();
 }
 
+const sidebarBtn = document.getElementById('sidebarBtn');
+if (sidebarBtn) {
+    sidebarBtn.onclick = () => toggleSidebar();
+}
+
+const sidebarClose = document.getElementById('sidebarClose');
+if (sidebarClose) {
+    sidebarClose.onclick = () => toggleSidebar(false);
+}
+
+const sidebarSearch = document.getElementById('sidebarSearch');
+if (sidebarSearch) {
+    sidebarSearch.oninput = (e) => {
+        sidebarQuery = e.target.value;
+        renderSidebarList();
+    };
+}
+
 const overlayEl = document.getElementById('modalOverlay');
 if (overlayEl) {
     overlayEl.onclick = (e) => {
@@ -839,7 +949,17 @@ if (overlayEl) {
 }
 
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') {
+        closeModal();
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar && sidebar.classList.contains('open')) {
+            toggleSidebar(false);
+        }
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+    }
 });
 
 /* ===== СТАРТ ===== */

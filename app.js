@@ -218,9 +218,9 @@ function renderMarkers() {
         const icon = L.divIcon({
             className: 'custom-marker',
             html: buildMarkerHtml(info),
-            iconSize: [48, 48],
-            iconAnchor: [24, 48],
-            popupAnchor: [0, -44]
+            iconSize: [44, 44],
+            iconAnchor: [22, 44],
+            popupAnchor: [0, -40]
         });
 
         const marker = L.marker(latlng, { icon: icon, draggable: isEditing }).addTo(map);
@@ -257,6 +257,8 @@ function renderMarkers() {
 
         markers[loc.id] = marker;
     });
+
+    if (typeof renderSidebarList === 'function') renderSidebarList();
 }
 
 function buildPopupHtml(loc) {
@@ -622,7 +624,7 @@ function renderSubPanel(loc, editable) {
                         <div class="item-subtitle">${info.label}</div>
                         ${sub.short ? `<div class="item-short">${escapeHtml(sub.short)}</div>` : ''}
                     </div>
-                    ${actions || '<div class="item-arrow" style="color:var(--ink-muted);font-size:18px;align-self:center;">›</div>'}
+                    ${actions || '<div class="item-arrow" style="color:var(--text-muted);font-size:18px;align-self:center;">›</div>'}
                 </div>`;
         });
         html += '</div>';
@@ -658,7 +660,7 @@ function renderFacPanel(loc, editable) {
                         <div class="item-subtitle">${info.label}</div>
                         ${fac.short ? `<div class="item-short">${escapeHtml(fac.short)}</div>` : ''}
                     </div>
-                    ${actions || '<div class="item-arrow" style="color:var(--ink-muted);font-size:18px;align-self:center;">›</div>'}
+                    ${actions || '<div class="item-arrow" style="color:var(--text-muted);font-size:18px;align-self:center;">›</div>'}
                 </div>`;
         });
         html += '</div>';
@@ -695,7 +697,7 @@ function renderLinksPanel(loc, editable) {
                         <div class="item-name">${escapeHtml(link.name)}</div>
                         <div class="item-subtitle">${info.label}</div>
                     </div>
-                    ${actions || '<div class="item-arrow" style="color:var(--ink-muted);font-size:18px;align-self:center;">›</div>'}
+                    ${actions || '<div class="item-arrow" style="color:var(--text-muted);font-size:18px;align-self:center;">›</div>'}
                 </div>`;
         });
         html += '</div>';

@@ -7,16 +7,17 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Philosopher:wght@400;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=16" />
+    <link rel="stylesheet" href="style.css?v=17" />
 </head>
 <body>
 
 <div id="map"></div>
 
 <div class="top-bar">
+    <button class="map-btn" id="sidebarBtn" title="Список локаций (Ctrl+B)">☰ Локации</button>
     <div class="top-title">⚔ МОРРИОН</div>
     <button class="map-btn" id="editBtn" title="Режим редактирования">✏️ Редактировать</button>
     <button class="map-btn" id="backupBtn" title="Скачать бэкап всех данных" style="display:none;">💾 Бэкап</button>
@@ -24,6 +25,17 @@
     <button class="map-btn" id="factionsBtn" title="Справочник фракций">⚔️ Фракции</button>
     <button class="map-btn" id="resetViewBtn" title="Сбросить вид">🎯 Обзор</button>
 </div>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-title">📍 Локации</div>
+        <button class="sidebar-close" id="sidebarClose" title="Закрыть">✕</button>
+    </div>
+    <div class="sidebar-search">
+        <input type="text" id="sidebarSearch" placeholder="Поиск по названию...">
+    </div>
+    <div class="sidebar-list" id="sidebarList"></div>
+</aside>
 
 <div class="status-bar" id="statusBar">
     <span class="dot"></span>
@@ -35,9 +47,9 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="config.js?v=16"></script>
-<script src="app.js?v=16"></script>
-<script src="app2.js?v=16"></script>
+<script src="config.js?v=17"></script>
+<script src="app.js?v=17"></script>
+<script src="app2.js?v=17"></script>
 
 </body>
 </html>
