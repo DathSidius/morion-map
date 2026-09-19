@@ -1,63 +1,175 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+const EDIT_PIN = process.env.EDIT_PIN || '1488';
 
-// Папка для данных и загруженных картинок
-const DATA_DIR = path.join(__dirname, 'data');
-const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+// --- Подключение к PostgreSQL ---
+// RelaxDev сам передаст строку подключения через переменную DATABASE_URL
+if (!process.env.DATABASE_URL) {
+    console.error('Нет DATABASE_URL. Включи базу данных в настройках проекта RelaxDev.');
+    process.exit(1);
+}
 
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL.includes('localhost')
+        ? false
+        : { rejectUnauthorized: false }
+});
+
+// --- Инициализация схемы ---
+async function initDatabase() {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS locations (
+            id TEXT PRIMARY KEY,
+            kind TEXT,
+            name TEXT,
+            data JSONB NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS images (
+            id TEXT PRIMARY KEY,
+            mime TEXT NOT NULL,
+            data BYTEA NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+    console.log('Таблицы locations и images готовы.');
+}
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, './')));
 
-// --- API локаций и фракций ---
-const LOCATIONS_FILE = path.join(DATA_DIR, 'locations.json');
+// ============================================================
+//  ЛОКАЦИИ
+// ============================================================
 
-app.get('/api/locations', (req, res) => {
-    if (fs.existsSync(LOCATIONS_FILE)) {
-        res.json(JSON.parse(fs.readFileSync(LOCATIONS_FILE, 'utf8')));
-    } else {
-        res.json({ locations: [], version: 0 });
+// Получить все локации и фракции
+app.get('/api/locations', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT data FROM locations ORDER BY updated_at DESC'
+        );
+        res.json({ locations: result.rows.map(r => r.data) });
+    } catch (err) {
+        console.error('GET /api/locations:', err);
+        res.status(500).json({ error: 'Ошибка БД' });
     }
 });
 
-app.post('/api/locations', (req, res) => {
+// Сохранить все локации (полная перезапись, в транзакции)
+app.post('/api/locations', async (req, res) => {
     const { pin, locations } = req.body;
-    const EDIT_PIN = process.env.EDIT_PIN || '1488';
     if (pin !== EDIT_PIN) return res.status(401).json({ error: 'Неверный PIN' });
-    if (!Array.isArray(locations)) return res.status(400).json({ error: 'locations должен быть массивом' });
+    if (!Array.isArray(locations)) {
+        return res.status(400).json({ error: 'locations должен быть массивом' });
+    }
 
-    const data = { locations, updatedAt: new Date().toISOString(), version: Date.now() };
-    fs.writeFileSync(LOCATIONS_FILE, JSON.stringify(data, null, 2));
-    res.json({ ok: true, version: data.version, count: locations.length });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM locations');
+
+        const insertQuery = `
+            INSERT INTO locations (id, kind, name, data)
+            VALUES ($1, $2, $3, $4)
+        `;
+        for (const loc of locations) {
+            await client.query(insertQuery, [
+                loc.id,
+                loc.kind || 'location',
+                loc.name || '',
+                JSON.stringify(loc)
+            ]);
+        }
+
+        await client.query('COMMIT');
+        res.json({ ok: true, count: locations.length });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('POST /api/locations:', err);
+        res.status(500).json({ error: 'Ошибка БД: ' + err.message });
+    } finally {
+        client.release();
+    }
 });
 
-// --- API загрузки картинок ---
-app.post('/api/upload', (req, res) => {
+// ============================================================
+//  КАРТИНКИ (хранятся в БД, чтобы не теряться при деплое)
+// ============================================================
+
+app.post('/api/upload', async (req, res) => {
     const { pin, data, mime } = req.body;
-    const EDIT_PIN = process.env.EDIT_PIN || '1488';
     if (pin !== EDIT_PIN) return res.status(401).json({ error: 'Неверный PIN' });
-    if (!data || !mime) return res.status(400).json({ error: 'Нужны поля data и mime' });
+    if (!data || !mime) {
+        return res.status(400).json({ error: 'Нужны поля data и mime' });
+    }
 
     try {
         const id = 'img-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-        const ext = mime.split('/')[1] || 'jpg';
-        const filename = `${id}.${ext}`;
-        fs.writeFileSync(path.join(UPLOAD_DIR, filename), Buffer.from(data, 'base64'));
-        res.json({ ok: true, id: id, url: `/data/uploads/${filename}` });
+        const buffer = Buffer.from(data, 'base64');
+
+        // Ограничим размер: 5 МБ
+        if (buffer.length > 5 * 1024 * 1024) {
+            return res.status(413).json({ error: 'Файл больше 5 МБ' });
+        }
+
+        await pool.query(
+            'INSERT INTO images (id, mime, data) VALUES ($1, $2, $3)',
+            [id, mime, buffer]
+        );
+
+        res.json({ ok: true, id, url: `/api/image/${id}` });
     } catch (err) {
+        console.error('POST /api/upload:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-app.use('/data/uploads', express.static(UPLOAD_DIR));
+app.get('/api/image/:id', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT mime, data FROM images WHERE id = $1',
+            [req.params.id]
+        );
+        if (result.rows.length === 0) return res.status(404).send('Не найдено');
+
+        const { mime, data } = result.rows[0];
+        res.set('Content-Type', mime);
+        res.set('Cache-Control', 'public, max-age=31536000, immutable');
+        res.send(data);
+    } catch (err) {
+        console.error('GET /api/image:', err);
+        res.status(500).send('Ошибка сервера');
+    }
+});
+
+// ============================================================
+//  СТАТИКА И SPA FALLBACK
+// ============================================================
+
+app.use(express.static(path.join(__dirname, './')));
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+// ============================================================
+//  СТАРТ
+// ============================================================
+
+initDatabase()
+    .then(() => {
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error('Не удалось запустить сервер:', err);
+        process.exit(1);
+    });
