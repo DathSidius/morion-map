@@ -25,9 +25,6 @@ window.MORION_CONFIG = {
         faction:     { icon: '⚔️', label: 'Фракция' }
     },
 
-    // ============================================================
-    //  ТИПЫ ЛОКАЦИЙ — имена совпадают с файлами в icons/
-    // ============================================================
     LOCATION_TYPES: {
         capital:  { image: 'icons/capital.png',    emoji: '🏰', label: 'Столица' },
         city:     { image: 'icons/city.png',       emoji: '🏘️', label: 'Город' },
