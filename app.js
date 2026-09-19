@@ -93,25 +93,14 @@ function migrateLocations() {
 //  ПОСТРОЕНИЕ HTML МАРКЕРА (со спрайтом или emoji)
 // ============================================================
 function buildMarkerHtml(info) {
-    const sprite = info.sprite;
     const css = info.css || '';
     const emoji = info.emoji || info.icon || '';
 
-    if (sprite && CONFIG.SPRITE_URL) {
-        // Вычисляем позицию в спрайте
-        const cols = CONFIG.SPRITE_COLS || 7;
-        const rows = CONFIG.SPRITE_ROWS || 5;
-        const xPercent = cols > 1 ? (sprite.col / (cols - 1)) * 100 : 0;
-        const yPercent = rows > 1 ? (sprite.row / (rows - 1)) * 100 : 0;
-
-        const style = [
-            `background-image: url('${CONFIG.SPRITE_URL}')`,
-            `background-size: ${cols * 100}% auto`,
-            `background-position: ${xPercent}% ${yPercent}%`
-        ].join('; ');
-
-        return `<div class="marker-icon has-sprite ${css}" style="${style}"></div>`;
+    if (info.image) {
+        return `<div class="marker-icon ${css}"><img src="${info.image}" alt="" draggable="false"></div>`;
     }
+    return `<div class="marker-icon ${css}">${emoji}</div>`;
+}
 
     // Fallback — emoji
     return `<div class="marker-icon ${css}">${emoji}</div>`;

@@ -31,7 +31,7 @@ html, body {
 #map { width: 100vw; height: 100vh; background: #2a2015; }
 .leaflet-container { background: #2a2015; font-family: var(--body-font); }
 
-/* ===== ZOOM CONTROLS (стандартные кнопки Leaflet) ===== */
+/* ZOOM CONTROLS */
 .leaflet-control-zoom {
     border: 2px solid var(--border-strong) !important;
     border-radius: 8px !important; overflow: hidden;
@@ -48,107 +48,58 @@ html, body {
     color: var(--accent) !important;
 }
 
-/* ============================================================
-   МАРКЕРЫ (emoji-версия)
-   ============================================================ */
-.custom-marker { background: transparent !important; border: none !important; }
-
-.marker-icon {
-    display: flex; align-items: center; justify-content: center;
-    width: 38px; height: 38px; background: var(--parchment);
-    border: 2px solid var(--border-strong); border-radius: 50%;
-    box-shadow: 0 3px 8px var(--shadow), inset 0 -2px 4px rgba(0,0,0,0.15);
-    font-size: 20px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer; position: relative;
+/* МАРКЕРЫ С PNG */
+.custom-marker {
+    background: transparent !important;
+    border: none !important;
 }
-.marker-icon::after {
-    content: ''; position: absolute; bottom: -6px; left: 50%;
-    transform: translateX(-50%) rotate(45deg);
-    width: 10px; height: 10px; background: var(--parchment);
-    border-right: 2px solid var(--border-strong);
-    border-bottom: 2px solid var(--border-strong);
+.marker-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                filter 0.25s;
+    filter: drop-shadow(0 3px 6px var(--shadow));
+    background: transparent;
+    border: none;
+}
+.marker-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
 }
 .marker-icon:hover {
     transform: scale(1.15) translateY(-3px);
-    box-shadow: 0 8px 20px var(--shadow), inset 0 -2px 4px rgba(0,0,0,0.15);
-    border-color: var(--accent); background: var(--gold-light);
+    filter: drop-shadow(0 8px 16px var(--shadow))
+            drop-shadow(0 0 10px var(--gold-light));
 }
-
 .marker-icon.marker-region {
-    width: 30px; height: 30px; font-size: 16px;
-    opacity: 0.9; border-style: dashed;
-}
-.marker-icon.marker-region::after { display: none; }
-
-.marker-icon.marker-capital {
-    background: var(--gold-light); border-color: var(--gold);
-    width: 44px; height: 44px; font-size: 24px;
-    box-shadow: 0 4px 12px var(--shadow), 0 0 20px rgba(212, 160, 23, 0.6),
-                inset 0 -2px 4px rgba(0,0,0,0.15);
-}
-.marker-icon.marker-capital::after {
-    background: var(--gold-light); border-color: var(--gold);
-}
-
-.marker-icon.marker-sea {
-    background: rgba(100, 140, 180, 0.5); border-color: #4a6a8a;
-    border-style: dashed; opacity: 0.7;
-}
-.marker-icon.marker-sea::after { display: none; }
-
-.marker-icon.marker-dark {
-    background: #3a2a3a; color: #d9b8d9; border-color: #5a3a5a;
-    box-shadow: 0 4px 12px var(--shadow), 0 0 20px rgba(150, 50, 150, 0.5);
-}
-.marker-icon.marker-dark::after { background: #3a2a3a; border-color: #5a3a5a; }
-
-/* ============================================================
-   СПРАЙТ ИКОНОК — фрагмент картинки в маркере
-   ============================================================ */
-.marker-icon.has-sprite {
-    background-repeat: no-repeat;
-    background-size: 700% auto;
-    background-color: transparent;
-    color: transparent;
-    font-size: 0;
-    border: none;
-    box-shadow: none;
     width: 48px;
     height: 48px;
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-}
-.marker-icon.has-sprite::after {
-    display: none;
-}
-.marker-icon.has-sprite:hover {
-    transform: scale(1.18) translateY(-3px);
-    filter: drop-shadow(0 6px 12px var(--shadow))
-            drop-shadow(0 0 8px var(--gold-light));
-    background-color: transparent;
-}
-
-.marker-icon.has-sprite.marker-capital {
-    width: 60px;
-    height: 60px;
-}
-.marker-icon.has-sprite.marker-region {
-    width: 44px;
-    height: 44px;
     opacity: 0.95;
 }
 
-/* ============================================================
-   POPUP
-   ============================================================ */
+/* POPUP */
 .leaflet-popup-content-wrapper {
-    background: var(--parchment); border: 2px solid var(--border-strong);
-    border-radius: 8px; box-shadow: 0 8px 24px var(--shadow);
-    padding: 0; overflow: hidden;
+    background: var(--parchment);
+    border: 2px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px var(--shadow);
+    padding: 0;
+    overflow: hidden;
 }
 .leaflet-popup-content {
-    margin: 0; padding: 0; font-family: var(--body-font);
-    color: var(--ink); min-width: 220px; max-width: 300px;
+    margin: 0;
+    padding: 0;
+    font-family: var(--body-font);
+    color: var(--ink);
+    min-width: 220px;
+    max-width: 300px;
 }
 .leaflet-popup-tip { background: var(--border-strong); }
 .leaflet-popup-close-button {
@@ -162,79 +113,111 @@ html, body {
     background: linear-gradient(180deg, var(--parchment-dark), var(--parchment-deep));
     border-bottom: 1px solid var(--border);
     font-family: var(--heading-font);
-    font-weight: 700; font-size: 15px; color: var(--ink);
-    display: flex; align-items: center; gap: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 .popup-body {
     padding: 12px 14px;
-    font-size: 15px; line-height: 1.5; color: var(--ink-soft);
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--ink-soft);
 }
 .popup-body p { margin: 0 0 8px 0; }
 .popup-body p:last-child { margin-bottom: 0; }
 .popup-btn {
-    display: block; width: 100%; padding: 10px;
-    background: var(--accent); color: #f2e5c8;
-    border: none; font-family: var(--heading-font);
-    font-size: 14px; font-weight: 600; letter-spacing: 0.05em;
-    cursor: pointer; transition: all 0.2s;
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background: var(--accent);
+    color: #f2e5c8;
+    border: none;
+    font-family: var(--heading-font);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
     text-transform: uppercase;
 }
 .popup-btn:hover { background: var(--accent-2); }
 
-/* ============================================================
-   ВЕРХНЯЯ ПАНЕЛЬ
-   ============================================================ */
+/* ВЕРХНЯЯ ПАНЕЛЬ */
 .top-bar {
     position: absolute; top: 16px; left: 16px; z-index: 500;
     display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
 }
 .top-title {
-    padding: 10px 20px; background: var(--parchment);
-    border: 2px solid var(--border-strong); border-radius: 8px;
-    font-family: var(--heading-font); font-size: 20px; font-weight: 900;
-    letter-spacing: 0.15em; color: var(--accent);
+    padding: 10px 20px;
+    background: var(--parchment);
+    border: 2px solid var(--border-strong);
+    border-radius: 8px;
+    font-family: var(--heading-font);
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: var(--accent);
     box-shadow: 0 4px 16px var(--shadow);
     text-shadow: 0 1px 0 rgba(255,255,255,0.4);
 }
 .map-btn {
-    padding: 10px 16px; background: var(--parchment);
-    border: 2px solid var(--border-strong); border-radius: 8px;
-    color: var(--ink); font-family: var(--heading-font);
-    font-size: 14px; font-weight: 600; letter-spacing: 0.03em;
-    cursor: pointer; box-shadow: 0 4px 12px var(--shadow);
+    padding: 10px 16px;
+    background: var(--parchment);
+    border: 2px solid var(--border-strong);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: var(--heading-font);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    box-shadow: 0 4px 12px var(--shadow);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex; align-items: center; gap: 6px; user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
 }
 .map-btn:hover {
-    background: var(--gold-light); border-color: var(--gold);
+    background: var(--gold-light);
+    border-color: var(--gold);
     transform: translateY(-2px);
     box-shadow: 0 6px 18px var(--shadow);
 }
 .map-btn.active {
-    background: var(--accent); color: var(--parchment);
+    background: var(--accent);
+    color: var(--parchment);
     border-color: var(--accent);
 }
 .map-btn.active:hover { background: var(--accent-2); }
 
-/* ============================================================
-   МОДАЛКА
-   ============================================================ */
+/* МОДАЛКА */
 .modal-overlay {
-    display: none; position: fixed; inset: 0;
+    display: none;
+    position: fixed;
+    inset: 0;
     background: rgba(20, 12, 6, 0.85);
     backdrop-filter: blur(4px);
-    z-index: 1000; align-items: center; justify-content: center;
-    padding: 20px; animation: fadeIn 0.25s ease;
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.25s ease;
 }
 .modal-overlay.open { display: flex; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
 .modal {
     background: var(--parchment);
     border: 3px solid var(--border-strong);
     border-radius: 12px;
-    max-width: 720px; width: 100%;
-    max-height: 90vh; display: flex; flex-direction: column;
+    max-width: 720px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 20px 60px rgba(0,0,0,0.6);
     position: relative;
     animation: modalIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -245,55 +228,82 @@ html, body {
     to { opacity: 1; transform: scale(1) translateY(0); }
 }
 .modal::before {
-    content: ''; position: absolute; inset: 0;
+    content: '';
+    position: absolute;
+    inset: 0;
     background:
         radial-gradient(circle at 20% 30%, rgba(139, 69, 19, 0.04), transparent 40%),
         radial-gradient(circle at 80% 70%, rgba(139, 69, 19, 0.04), transparent 40%);
-    pointer-events: none; z-index: 0;
+    pointer-events: none;
+    z-index: 0;
 }
 .modal > * { position: relative; z-index: 1; }
-
 .modal-header {
-    padding: 20px 28px; border-bottom: 2px solid var(--border);
+    padding: 20px 28px;
+    border-bottom: 2px solid var(--border);
     background: linear-gradient(180deg, var(--parchment-dark), var(--parchment));
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 16px; flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-shrink: 0;
 }
 .modal-title-block { flex: 1; min-width: 0; }
 .modal-type {
-    font-family: var(--heading-font); font-size: 11px; font-weight: 700;
-    letter-spacing: 0.2em; color: var(--ink-muted);
-    text-transform: uppercase; margin-bottom: 4px;
+    font-family: var(--heading-font);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
 }
 .modal-title {
-    font-family: var(--heading-font); font-size: 28px; font-weight: 900;
-    color: var(--ink); letter-spacing: 0.02em; line-height: 1.2;
+    font-family: var(--heading-font);
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+    line-height: 1.2;
     text-shadow: 0 1px 0 rgba(255,255,255,0.4);
     word-wrap: break-word;
 }
 .modal-close {
-    background: transparent; border: 2px solid var(--border-strong);
-    color: var(--ink); width: 36px; height: 36px; border-radius: 50%;
-    cursor: pointer; font-size: 18px;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s; flex-shrink: 0;
+    background: transparent;
+    border: 2px solid var(--border-strong);
+    color: var(--ink);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
 }
 .modal-close:hover {
-    background: var(--accent); color: var(--parchment);
-    border-color: var(--accent); transform: rotate(90deg);
+    background: var(--accent);
+    color: var(--parchment);
+    border-color: var(--accent);
+    transform: rotate(90deg);
 }
 .modal-body {
-    padding: 0; overflow-y: auto; flex: 1;
+    padding: 0;
+    overflow-y: auto;
+    flex: 1;
 }
 
-/* ============================================================
-   ВКЛАДКИ В МОДАЛКЕ
-   ============================================================ */
+/* ВКЛАДКИ */
 .modal-tabs {
-    display: flex; gap: 4px; padding: 8px 28px 0;
+    display: flex;
+    gap: 4px;
+    padding: 8px 28px 0;
     background: linear-gradient(180deg, var(--parchment), var(--parchment-dark));
     border-bottom: 1px solid var(--border);
-    overflow-x: auto; scrollbar-width: thin;
+    overflow-x: auto;
+    scrollbar-width: thin;
     flex-shrink: 0;
 }
 .modal-tabs::-webkit-scrollbar { height: 4px; }
@@ -302,64 +312,82 @@ html, body {
 }
 .modal-tab {
     padding: 10px 16px;
-    background: transparent; border: none;
+    background: transparent;
+    border: none;
     border-bottom: 3px solid transparent;
-    font-family: var(--heading-font); font-size: 13px; font-weight: 700;
-    letter-spacing: 0.05em; color: var(--ink-muted);
-    cursor: pointer; white-space: nowrap;
+    font-family: var(--heading-font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--ink-muted);
+    cursor: pointer;
+    white-space: nowrap;
     transition: all 0.2s;
-    display: flex; align-items: center; gap: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     text-transform: uppercase;
 }
-.modal-tab:hover {
-    color: var(--accent); background: rgba(255,255,255,0.3);
-}
+.modal-tab:hover { color: var(--accent); background: rgba(255,255,255,0.3); }
 .modal-tab.active {
     color: var(--accent);
     border-bottom-color: var(--accent);
     background: rgba(255,255,255,0.5);
 }
 .modal-tab .tab-count {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 20px; height: 20px; padding: 0 6px;
-    background: var(--accent); color: var(--parchment);
-    border-radius: 10px; font-size: 11px; font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: var(--accent);
+    color: var(--parchment);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
 }
 .modal-tab.active .tab-count { background: var(--accent-2); }
-
 .tab-panel { display: none; padding: 24px 28px; }
 .tab-panel.active { display: block; }
 
-/* ============================================================
-   ХЛЕБНЫЕ КРОШКИ
-   ============================================================ */
+/* ХЛЕБНЫЕ КРОШКИ */
 .breadcrumbs {
-    display: flex; align-items: center; gap: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     padding: 10px 28px;
     background: var(--parchment-deep);
     border-bottom: 1px solid var(--border);
-    font-family: var(--heading-font); font-size: 12px;
-    letter-spacing: 0.03em; color: var(--ink-soft);
-    flex-wrap: wrap; flex-shrink: 0;
+    font-family: var(--heading-font);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    flex-wrap: wrap;
+    flex-shrink: 0;
 }
 .breadcrumbs button {
-    background: none; border: none; color: var(--accent);
-    cursor: pointer; font-family: inherit; font-size: inherit;
-    font-weight: 700; padding: 2px 4px; border-radius: 3px;
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 700;
+    padding: 2px 4px;
+    border-radius: 3px;
     transition: background 0.15s;
 }
 .breadcrumbs button:hover { background: rgba(139, 45, 26, 0.1); }
 .breadcrumbs .sep { color: var(--ink-muted); opacity: 0.6; }
 .breadcrumbs .current { color: var(--ink); font-weight: 700; }
 
-/* ============================================================
-   СПИСОК ЭЛЕМЕНТОВ
-   ============================================================ */
-.items-list {
-    display: flex; flex-direction: column; gap: 10px;
-}
+/* СПИСОК ЭЛЕМЕНТОВ */
+.items-list { display: flex; flex-direction: column; gap: 10px; }
 .item-card {
-    display: flex; align-items: flex-start; gap: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
     padding: 12px 14px;
     background: var(--parchment-dark);
     border: 2px solid var(--border);
@@ -375,269 +403,356 @@ html, body {
     box-shadow: 0 4px 12px var(--shadow);
 }
 .item-card .item-icon {
-    font-size: 28px; line-height: 1; flex-shrink: 0; margin-top: 2px;
+    font-size: 28px;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 2px;
 }
-.item-card .item-content {
-    flex: 1; min-width: 0;
-}
+.item-card .item-content { flex: 1; min-width: 0; }
 .item-card .item-name {
-    font-family: var(--heading-font); font-size: 16px; font-weight: 700;
-    color: var(--ink); margin-bottom: 3px;
+    font-family: var(--heading-font);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 3px;
 }
 .item-card .item-subtitle {
-    font-family: var(--heading-font); font-size: 10px; font-weight: 700;
-    letter-spacing: 0.15em; text-transform: uppercase;
-    color: var(--ink-muted); margin-bottom: 5px;
+    font-family: var(--heading-font);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 5px;
 }
 .item-card .item-short {
-    font-family: var(--body-font); font-size: 14px;
-    color: var(--ink-soft); line-height: 1.4;
+    font-family: var(--body-font);
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.4;
 }
 .item-card .item-actions {
-    display: flex; gap: 4px; align-items: center; flex-shrink: 0;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
 }
 .item-card .item-action-btn {
-    background: transparent; border: 1px solid var(--border);
-    color: var(--ink-soft); width: 32px; height: 32px;
-    border-radius: 50%; cursor: pointer; font-size: 14px;
-    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--ink-soft);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.2s;
 }
 .item-card .item-action-btn:hover {
-    background: var(--accent); color: var(--parchment);
+    background: var(--accent);
+    color: var(--parchment);
     border-color: var(--accent);
 }
 .item-card .item-action-btn.danger:hover {
-    background: #a02818; border-color: #a02818;
+    background: #a02818;
+    border-color: #a02818;
 }
 
-/* ============================================================
-   ПУСТОЙ СПИСОК
-   ============================================================ */
+/* ПУСТОЕ СОСТОЯНИЕ */
 .empty-state {
-    text-align: center; padding: 40px 20px;
-    font-family: var(--body-font); font-size: 16px;
-    color: var(--ink-muted); font-style: italic;
+    text-align: center;
+    padding: 40px 20px;
+    font-family: var(--body-font);
+    font-size: 16px;
+    color: var(--ink-muted);
+    font-style: italic;
     background: var(--parchment-dark);
     border: 2px dashed var(--border);
     border-radius: 8px;
 }
 .empty-state .empty-icon {
-    display: block; font-size: 48px;
-    margin-bottom: 12px; opacity: 0.4;
+    display: block;
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.4;
 }
 
-/* ============================================================
-   КНОПКА ДОБАВЛЕНИЯ
-   ============================================================ */
+/* КНОПКА ДОБАВЛЕНИЯ */
 .add-item-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: 100%; padding: 12px; margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px;
+    margin-top: 12px;
     background: transparent;
     border: 2px dashed var(--border-strong);
     border-radius: 8px;
     color: var(--accent);
-    font-family: var(--heading-font); font-size: 13px; font-weight: 700;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    cursor: pointer; transition: all 0.2s;
+    font-family: var(--heading-font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 .add-item-btn:hover {
     background: var(--parchment-dark);
-    border-style: solid; border-color: var(--accent);
+    border-style: solid;
+    border-color: var(--accent);
     transform: translateY(-1px);
 }
 
-/* ============================================================
-   СВЯЗИ
-   ============================================================ */
+/* ССЫЛКИ */
 .modal-links {
-    margin-top: 24px; padding-top: 20px;
+    margin-top: 24px;
+    padding-top: 20px;
     border-top: 1px dashed var(--border);
 }
 .modal-links-title {
-    font-family: var(--heading-font); font-size: 13px; font-weight: 700;
-    letter-spacing: 0.15em; color: var(--ink-muted);
-    text-transform: uppercase; margin-bottom: 12px;
+    font-family: var(--heading-font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
 }
-.modal-links-list {
-    display: flex; flex-wrap: wrap; gap: 8px;
-}
+.modal-links-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .modal-link-btn {
-    padding: 8px 14px; background: var(--parchment-dark);
-    border: 1px solid var(--border); border-radius: 20px;
-    font-family: var(--heading-font); font-size: 13px; font-weight: 600;
-    color: var(--ink); cursor: pointer; transition: all 0.2s;
-    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: var(--parchment-dark);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-family: var(--heading-font);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
-.modal-link-btn:hover {
-    background: var(--gold-light); border-color: var(--gold);
-}
+.modal-link-btn:hover { background: var(--gold-light); border-color: var(--gold); }
 .modal-link-btn .remove-link {
-    color: var(--accent); font-weight: 900; font-size: 14px;
+    color: var(--accent);
+    font-weight: 900;
+    font-size: 14px;
 }
 
-/* ============================================================
-   КАРТИНКИ В МОДАЛКЕ
-   ============================================================ */
+/* КАРТИНКИ В МОДАЛКЕ */
 .modal-image {
-    width: 100%; border-radius: 8px; border: 2px solid var(--border);
-    margin-bottom: 20px; box-shadow: 0 4px 16px var(--shadow);
+    width: 100%;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px var(--shadow);
     display: block;
 }
 
-/* ============================================================
-   ОПИСАНИЕ
-   ============================================================ */
+/* ОПИСАНИЕ */
 .modal-description {
-    font-family: var(--body-font); font-size: 18px; line-height: 1.7;
-    color: var(--ink-soft); white-space: pre-wrap;
+    font-family: var(--body-font);
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--ink-soft);
+    white-space: pre-wrap;
 }
 
-/* ============================================================
-   МЕТА-ИНФО ФРАКЦИИ
-   ============================================================ */
+/* МЕТА ФРАКЦИИ */
 .faction-meta {
-    display: flex; flex-wrap: wrap; gap: 16px;
-    margin-top: 16px; padding: 12px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 16px;
+    padding: 12px 16px;
     background: var(--parchment-dark);
-    border-radius: 8px; border: 1px solid var(--border);
+    border-radius: 8px;
+    border: 1px solid var(--border);
 }
-.faction-meta-item {
-    display: flex; flex-direction: column; gap: 4px;
-}
+.faction-meta-item { display: flex; flex-direction: column; gap: 4px; }
 .faction-meta-item .meta-label {
-    font-family: var(--heading-font); font-size: 10px;
-    font-weight: 700; letter-spacing: 0.15em;
-    text-transform: uppercase; color: var(--ink-muted);
+    font-family: var(--heading-font);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
 }
 .faction-meta-item .meta-value {
-    font-family: var(--body-font); font-size: 16px; color: var(--ink);
+    font-family: var(--body-font);
+    font-size: 16px;
+    color: var(--ink);
 }
 
-/* ============================================================
-   ФОРМА
-   ============================================================ */
+/* ФОРМА */
 .form-row { margin-bottom: 16px; }
 .form-row label {
-    display: block; font-family: var(--heading-font); font-size: 12px;
-    font-weight: 700; letter-spacing: 0.1em; color: var(--ink-muted);
-    text-transform: uppercase; margin-bottom: 6px;
+    display: block;
+    font-family: var(--heading-font);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
 }
 .form-row input,
 .form-row select,
 .form-row textarea {
-    width: 100%; padding: 10px 14px;
+    width: 100%;
+    padding: 10px 14px;
     background: var(--parchment-dark);
-    border: 2px solid var(--border); border-radius: 6px;
-    color: var(--ink); font-family: var(--body-font);
-    font-size: 16px; transition: all 0.2s;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    color: var(--ink);
+    font-family: var(--body-font);
+    font-size: 16px;
+    transition: all 0.2s;
 }
 .form-row input:focus,
 .form-row select:focus,
 .form-row textarea:focus {
-    outline: none; border-color: var(--accent);
+    outline: none;
+    border-color: var(--accent);
     background: var(--parchment);
     box-shadow: 0 0 0 3px rgba(139, 45, 26, 0.15);
 }
 .form-row textarea {
-    min-height: 100px; resize: vertical;
+    min-height: 100px;
+    resize: vertical;
     font-family: var(--body-font);
 }
 .form-actions {
-    display: flex; gap: 10px; margin-top: 24px;
-    justify-content: flex-end; flex-wrap: wrap;
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
 }
 .form-btn {
-    padding: 10px 20px; border-radius: 6px;
+    padding: 10px 20px;
+    border-radius: 6px;
     font-family: var(--heading-font);
-    font-size: 14px; font-weight: 700; letter-spacing: 0.05em;
-    cursor: pointer; transition: all 0.2s;
-    border: 2px solid transparent; text-transform: uppercase;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    text-transform: uppercase;
 }
 .form-btn.primary {
-    background: var(--accent); color: var(--parchment);
+    background: var(--accent);
+    color: var(--parchment);
     border-color: var(--accent);
 }
 .form-btn.primary:hover {
-    background: var(--accent-2); border-color: var(--accent-2);
+    background: var(--accent-2);
+    border-color: var(--accent-2);
 }
 .form-btn.danger {
-    background: transparent; color: var(--accent);
+    background: transparent;
+    color: var(--accent);
     border-color: var(--accent);
 }
 .form-btn.danger:hover {
-    background: var(--accent); color: var(--parchment);
+    background: var(--accent);
+    color: var(--parchment);
 }
 .form-btn.secondary {
-    background: var(--parchment-dark); color: var(--ink);
+    background: var(--parchment-dark);
+    color: var(--ink);
     border-color: var(--border);
 }
 .form-btn.secondary:hover { background: var(--parchment-deep); }
 
-/* ============================================================
-   PIN-ФОРМА
-   ============================================================ */
+/* PIN-ФОРМА */
 .pin-form { text-align: center; padding: 20px 0; }
 .pin-display {
-    display: flex; gap: 12px; justify-content: center; margin: 24px 0;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin: 24px 0;
 }
 .pin-digit {
-    width: 56px; height: 70px;
+    width: 56px;
+    height: 70px;
     border: 3px solid var(--border-strong);
-    border-radius: 10px; background: var(--parchment-dark);
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--heading-font); font-size: 32px; font-weight: 900;
-    color: var(--accent); transition: all 0.2s;
+    border-radius: 10px;
+    background: var(--parchment-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--heading-font);
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--accent);
+    transition: all 0.2s;
 }
 .pin-digit.filled {
-    background: var(--gold-light); border-color: var(--gold);
+    background: var(--gold-light);
+    border-color: var(--gold);
     transform: scale(1.05);
 }
 .pin-hint {
-    font-family: var(--body-font); font-size: 16px;
-    color: var(--ink-muted); font-style: italic;
+    font-family: var(--body-font);
+    font-size: 16px;
+    color: var(--ink-muted);
+    font-style: italic;
 }
 
-/* ============================================================
-   СТАТУС-БАР
-   ============================================================ */
+/* СТАТУС-БАР */
 .status-bar {
-    position: absolute; bottom: 16px; left: 16px; z-index: 500;
-    padding: 8px 16px; background: var(--parchment);
-    border: 2px solid var(--border-strong); border-radius: 20px;
-    font-family: var(--heading-font); font-size: 12px;
-    font-weight: 600; letter-spacing: 0.1em; color: var(--ink);
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 500;
+    padding: 8px 16px;
+    background: var(--parchment);
+    border: 2px solid var(--border-strong);
+    border-radius: 20px;
+    font-family: var(--heading-font);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--ink);
     box-shadow: 0 4px 12px var(--shadow);
-    display: flex; align-items: center; gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 .status-bar .dot {
-    width: 8px; height: 8px; border-radius: 50%;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
     background: var(--ink-muted);
 }
 .status-bar.ok .dot {
-    background: #4a8a2a; box-shadow: 0 0 8px #4a8a2a;
+    background: #4a8a2a;
+    box-shadow: 0 0 8px #4a8a2a;
 }
 .status-bar.error .dot {
-    background: var(--accent); box-shadow: 0 0 8px var(--accent);
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
 }
 .status-bar.loading .dot {
-    background: var(--gold); animation: pulse 1s infinite;
+    background: var(--gold);
+    animation: pulse 1s infinite;
 }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-/* ============================================================
-   КУРСОР В РЕЖИМЕ РЕДАКТОРА
-   ============================================================ */
 body.editing #map { cursor: crosshair; }
 body.editing .custom-marker { cursor: move; }
 
-/* ============================================================
-   АДАПТИВ
-   ============================================================ */
 @media (max-width: 768px) {
-    .top-title {
-        font-size: 16px; padding: 8px 14px; letter-spacing: 0.1em;
-    }
+    .top-title { font-size: 16px; padding: 8px 14px; letter-spacing: 0.1em; }
     .map-btn { padding: 8px 12px; font-size: 12px; }
     .modal-header { padding: 16px 20px; }
     .modal-title { font-size: 22px; }
@@ -646,8 +761,6 @@ body.editing .custom-marker { cursor: move; }
     .modal-tab { padding: 8px 12px; font-size: 11px; }
     .breadcrumbs { padding: 8px 16px; }
     .pin-digit { width: 46px; height: 58px; font-size: 26px; }
-
-    .marker-icon.has-sprite { width: 40px; height: 40px; }
-    .marker-icon.has-sprite.marker-capital { width: 48px; height: 48px; }
-    .marker-icon.has-sprite.marker-region { width: 36px; height: 36px; }
+    .marker-icon { width: 44px; height: 44px; }
+    .marker-icon.marker-region { width: 38px; height: 38px; }
 }

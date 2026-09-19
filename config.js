@@ -19,15 +19,6 @@ window.MORION_CONFIG = {
     API_UPLOAD: '/api/upload',
     STORAGE_PIN: 'morion_pin',
 
-    // ============================================================
-    //  СПРАЙТ ИКОНОК
-    // ============================================================
-    // Путь к файлу со спрайтом
-    SPRITE_URL: 'icons.png',
-    // Сколько колонок и рядов в спрайте
-    SPRITE_COLS: 7,
-    SPRITE_ROWS: 5,
-
     KIND_INFO: {
         location:    { icon: '📍', label: 'Локация на карте' },
         sublocation: { icon: '🏛', label: 'Подлокация' },
@@ -37,21 +28,21 @@ window.MORION_CONFIG = {
     // ============================================================
     //  ТИПЫ ЛОКАЦИЙ
     // ============================================================
-    // sprite: { col: индекс_колонки_0_до_6, row: индекс_ряда_0_до_4 }
-    //   если sprite нет — используется emoji (icon)
-    // ============================================================
     LOCATION_TYPES: {
-        capital:  { emoji: '🏰', label: 'Столица',      css: 'marker-capital', sprite: { col: 1, row: 0 } },
-        city:     { emoji: '🏘️', label: 'Город',        css: '',               sprite: { col: 1, row: 1 } },
-        fortress: { emoji: '⚔️', label: 'Крепость',     css: '',               sprite: { col: 3, row: 2 } },
-        village:  { emoji: '🛖', label: 'Деревня',      css: '',               sprite: { col: 2, row: 4 } },
-        port:     { emoji: '⚓', label: 'Порт',         css: '',               sprite: { col: 4, row: 1 } },
-        region:   { emoji: '📜', label: 'Регион',       css: 'marker-region',  sprite: { col: 2, row: 2 } },
-        sea:      { emoji: '🌊', label: 'Море',         css: 'marker-sea' },
-        forest:   { emoji: '🌲', label: 'Лес',          css: 'marker-region' },
-        mountain: { emoji: '⛰️', label: 'Гора',         css: 'marker-region' },
-        dark:     { emoji: '💀', label: 'Тёмное место', css: 'marker-dark',    sprite: { col: 0, row: 2 } },
-        gate:     { emoji: '🚪', label: 'Врата',        css: '',               sprite: { col: 5, row: 2 } }
+        capital:  { image: 'icons/capital.png',  emoji: '🏰', label: 'Столица' },
+        city:     { image: 'icons/city.png',     emoji: '🏘️', label: 'Город' },
+        town:     { image: 'icons/town.png',     emoji: '🏘️', label: 'Городок' },
+        fortress: { image: 'icons/fortress.png', emoji: '⚔️', label: 'Крепость' },
+        tower:    { image: 'icons/tower.png',    emoji: '🗼', label: 'Башня' },
+        village:  { image: 'icons/village.png',  emoji: '🛖', label: 'Деревня' },
+        hamlet:   { image: 'icons/hamlet.png',   emoji: '🛖', label: 'Хутор' },
+        gate:     { image: 'icons/gate.png',     emoji: '🚪', label: 'Врата' },
+        port:     { image: 'icons/port.png',     emoji: '⚓', label: 'Порт' },
+        ruins:    { image: 'icons/ruins.png',    emoji: '🏚️', label: 'Руины' },
+        mountain: { image: 'icons/mountain.png', emoji: '⛰️', label: 'Гора' },
+        forest:   { image: 'icons/forest.png',   emoji: '🌲', label: 'Лес' },
+        region:   { image: 'icons/region.png',   emoji: '📜', label: 'Регион' },
+        dark:     { image: 'icons/dark.png',     emoji: '💀', label: 'Тёмное место' }
     },
 
     SUBLOCATION_TYPES: {
