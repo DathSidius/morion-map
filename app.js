@@ -1,5 +1,5 @@
 // ============================================================
-//  ЛОГИКА КАРТЫ МОРРИОНА — С ПОДЛОКАЦИЯМИ И ФРАКЦИЯМИ
+//  ЛОГИКА КАРТЫ МОРРИОНА — С ПОДЛОКАЦИЯМИ, ФРАКЦИЯМИ И ЗУМ-СЛОЯМИ
 // ============================================================
 
 const CONFIG = window.MORION_CONFIG;
@@ -127,7 +127,70 @@ function initMap() {
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.on('click', onMapClick);
+    map.on('zoomend', updateMarkerVisibility);
     window.addEventListener('resize', () => map.invalidateSize());
+}
+
+// ============================================================
+//  ЗУМ-СЛАЙДЕР СПРАВА
+// ============================================================
+function initZoomSlider() {
+    let sliderEl = document.getElementById('zoomSlider');
+    if (sliderEl) return;
+
+    sliderEl = document.createElement('div');
+    sliderEl.className = 'zoom-slider';
+    sliderEl.id = 'zoomSlider';
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.id = 'zoomSliderInput';
+    input.min = '0';
+    input.max = String(ZOOM_LEVEL);
+    input.step = '0.25';
+    input.value = String(CONFIG.START_ZOOM);
+
+    sliderEl.appendChild(input);
+    document.body.appendChild(sliderEl);
+
+    // Слайдер → карта
+    input.addEventListener('input', () => {
+        const val = parseFloat(input.value);
+        map.setZoom(val, { animate: false });
+    });
+
+    // Карта → слайдер
+    const syncSlider = () => {
+        input.value = String(map.getZoom());
+    };
+    map.on('zoom', syncSlider);
+    map.on('zoomend', syncSlider);
+}
+
+// ============================================================
+//  ЗУМ-СЛОИ — ВИДИМОСТЬ МАРКЕРОВ
+// ============================================================
+function updateMarkerVisibility() {
+    const z = map.getZoom();
+
+    Object.values(markers).forEach(marker => {
+        if (!marker) return;
+        const el = marker.getElement();
+        if (!el) return;
+
+        // В режиме редактирования видны ВСЕ маркеры
+        if (isEditing) {
+            el.classList.remove('marker-hidden');
+            return;
+        }
+
+        const minZ = marker._minZoom || 0;
+        if (z >= minZ) {
+            el.classList.remove('marker-hidden');
+        } else {
+            el.classList.add('marker-hidden');
+        }
+    });
 }
 
 // ============================================================
@@ -199,6 +262,12 @@ function renderMarkers() {
         });
 
         const marker = L.marker(latlng, { icon, draggable: isEditing }).addTo(map);
+
+        // Минимальный зум для показа маркера
+        marker._minZoom = (loc.minZoomOverride !== undefined && loc.minZoomOverride !== null)
+            ? loc.minZoomOverride
+            : (info.minZoom || 0);
+
         marker.bindPopup(buildPopupHtml(loc), { maxWidth: 300, minWidth: 220, closeButton: true, autoPan: true });
 
         marker.on('popupopen', () => {
@@ -232,6 +301,9 @@ function renderMarkers() {
 
         markers[loc.id] = marker;
     });
+
+    // Применить зум-слои сразу
+    updateMarkerVisibility();
 }
 
 function buildPopupHtml(loc) {
@@ -432,6 +504,16 @@ function renderDescPanel(loc, editable, isNew = false) {
             </div>`;
         }
 
+        // Поле для переопределения зума
+        if (loc.kind === 'location') {
+            const currentOverride = (loc.minZoomOverride !== undefined && loc.minZoomOverride !== null) ? loc.minZoomOverride : '';
+            html += `<div class="form-row">
+                <label>Показывать с зума (необязательно)</label>
+                <input type="number" id="f-minzoom" value="${currentOverride}" min="0" max="${ZOOM_LEVEL}" step="0.5" placeholder="Пусто — по типу локации">
+                <div style="font-size:12px;color:var(--ink-muted);margin-top:4px;font-style:italic;">Оставьте пустым, чтобы использовался стандарт для типа</div>
+            </div>`;
+        }
+
         html += `<div class="form-row">
             <label>Картинка (URL или загрузка)</label>
             <input type="text" id="f-image" value="${escapeHtml(loc.image || '')}" placeholder="https://... или загрузите файл">
@@ -505,6 +587,18 @@ function bindDescPanel(loc, isNew) {
             loc.short = modal.querySelector('#f-short').value.trim();
             loc.description = modal.querySelector('#f-description').value.trim();
             loc.image = fImage ? fImage.value.trim() : '';
+
+            // Поле переопределения зума (только для локаций на карте)
+            const minZoomEl = modal.querySelector('#f-minzoom');
+            if (minZoomEl && loc.kind === 'location') {
+                const val = minZoomEl.value.trim();
+                if (val === '') {
+                    loc.minZoomOverride = null;
+                } else {
+                    const num = parseFloat(val);
+                    if (!isNaN(num)) loc.minZoomOverride = num;
+                }
+            }
 
             if (loc.kind === 'faction') {
                 const leaderEl = modal.querySelector('#f-leader');
@@ -1318,6 +1412,7 @@ function enableEditMode() {
         editBtn.textContent = '✅ Выйти из редактора';
     }
     renderMarkers();
+    updateMarkerVisibility();
     setStatus('ok', 'Режим редактирования');
 }
 function disableEditMode() {
@@ -1329,6 +1424,7 @@ function disableEditMode() {
         editBtn.textContent = '✏️ Редактировать';
     }
     renderMarkers();
+    updateMarkerVisibility();
     setStatus('ok', 'Просмотр');
 }
 
@@ -1350,7 +1446,7 @@ function onMapClick(e) {
 }
 
 // ============================================================
-//  КНОПКИ (С ЗАЩИТОЙ)
+//  КНОПКИ
 // ============================================================
 const editBtn = document.getElementById('editBtn');
 if (editBtn) {
@@ -1393,6 +1489,7 @@ document.addEventListener('keydown', (e) => {
 (function() {
     setStatus('loading', 'Загрузка карты...');
     initMap();
+    initZoomSlider();
     applyStartView(false);
     setTimeout(() => applyStartView(false), 100);
     setTimeout(() => applyStartView(false), 400);
