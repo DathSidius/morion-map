@@ -90,7 +90,7 @@ function migrateLocations() {
 }
 
 // ============================================================
-//  ПОСТРОЕНИЕ HTML МАРКЕРА (PNG-иконка или emoji)
+//  ПОСТРОЕНИЕ HTML МАРКЕРА
 // ============================================================
 function buildMarkerHtml(info) {
     const css = info.css || '';
@@ -1218,7 +1218,6 @@ async function unlinkLocation(locId, otherId) {
     if (ok) openLocationEditor(loc, false, 'links');
 }
 
-// Делегирование для добавления связи
 document.addEventListener('change', async (e) => {
     if (e.target && e.target.id === 'f-add-link') {
         const targetId = e.target.value;
