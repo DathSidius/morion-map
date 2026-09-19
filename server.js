@@ -169,3 +169,4 @@ initDatabase()
         console.error('Не удалось запустить сервер:', err);
         process.exit(1);
     });
+    //
