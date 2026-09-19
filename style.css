@@ -49,7 +49,7 @@ html, body {
 }
 
 /* ============================================================
-   МАРКЕРЫ — уменьшенные, на белом фоне
+   МАРКЕРЫ — белый круг с толстой обводкой
    ============================================================ */
 .custom-marker {
     background: transparent !important;
@@ -60,18 +60,20 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     background: #ffffff;
-    border: 2px solid var(--border-strong);
+    border: 3px solid #2a1e10;
     border-radius: 50%;
-    box-shadow: 0 3px 8px var(--shadow);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
                 box-shadow 0.25s,
                 border-color 0.25s;
-    padding: 5px;
+    padding: 7px;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 .marker-icon img {
@@ -85,14 +87,14 @@ html, body {
 .marker-icon:hover {
     transform: scale(1.15) translateY(-3px);
     border-color: var(--gold);
-    box-shadow: 0 8px 16px var(--shadow),
-                0 0 12px var(--gold-light);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5),
+                0 0 14px var(--gold-light);
 }
 
 .marker-icon.marker-region {
-    width: 36px;
-    height: 36px;
-    padding: 4px;
+    width: 40px;
+    height: 40px;
+    padding: 5px;
     opacity: 0.95;
 }
 
@@ -237,7 +239,7 @@ html, body {
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
     position: relative;
     animation: modalIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
@@ -285,7 +287,7 @@ html, body {
     color: var(--ink);
     letter-spacing: 0.02em;
     line-height: 1.2;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
     word-wrap: break-word;
 }
 .modal-close {
@@ -348,11 +350,11 @@ html, body {
     gap: 6px;
     text-transform: uppercase;
 }
-.modal-tab:hover { color: var(--accent); background: rgba(255,255,255,0.3); }
+.modal-tab:hover { color: var(--accent); background: rgba(255, 255, 255, 0.3); }
 .modal-tab.active {
     color: var(--accent);
     border-bottom-color: var(--accent);
-    background: rgba(255,255,255,0.5);
+    background: rgba(255, 255, 255, 0.5);
 }
 .modal-tab .tab-count {
     display: inline-flex;
@@ -762,6 +764,6 @@ body.editing .custom-marker { cursor: move; }
     .modal-tab { padding: 8px 12px; font-size: 11px; }
     .breadcrumbs { padding: 8px 16px; }
     .pin-digit { width: 46px; height: 58px; font-size: 26px; }
-    .marker-icon { width: 38px; height: 38px; padding: 4px; }
-    .marker-icon.marker-region { width: 32px; height: 32px; }
+    .marker-icon { width: 42px; height: 42px; padding: 6px; }
+    .marker-icon.marker-region { width: 36px; height: 36px; padding: 4px; }
 }
