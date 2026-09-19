@@ -20,17 +20,13 @@ window.MORION_CONFIG = {
     STORAGE_PIN: 'morion_pin',
 
     // ============================================================
-    //  ЗУМ-СЛОИ
+    //  СПРАЙТ ИКОНОК
     // ============================================================
-    // При каком зуме появляется каждый ТИП объекта.
-    // Можно переопределить на конкретном объекте полем minZoomOverride.
-    //
-    //   0 — видно всегда (регионы, моря, столицы)
-    //   2 — крупные города
-    //   3 — крепости, порты
-    //   4 — мелкие объекты, врата
-    //   5 — деревни, руины
-    // ============================================================
+    // Путь к файлу со спрайтом
+    SPRITE_URL: 'icons.png',
+    // Сколько колонок и рядов в спрайте
+    SPRITE_COLS: 7,
+    SPRITE_ROWS: 5,
 
     KIND_INFO: {
         location:    { icon: '📍', label: 'Локация на карте' },
@@ -38,18 +34,24 @@ window.MORION_CONFIG = {
         faction:     { icon: '⚔️', label: 'Фракция' }
     },
 
+    // ============================================================
+    //  ТИПЫ ЛОКАЦИЙ
+    // ============================================================
+    // sprite: { col: индекс_колонки_0_до_6, row: индекс_ряда_0_до_4 }
+    //   если sprite нет — используется emoji (icon)
+    // ============================================================
     LOCATION_TYPES: {
-        region:   { icon: '📜', label: 'Регион',       css: 'marker-region',   minZoom: 0 },
-        sea:      { icon: '🌊', label: 'Море',         css: 'marker-sea',      minZoom: 0 },
-        forest:   { icon: '🌲', label: 'Лес',          css: 'marker-region',   minZoom: 0 },
-        mountain: { icon: '⛰️', label: 'Гора',         css: 'marker-region',   minZoom: 0 },
-        capital:  { icon: '🏰', label: 'Столица',      css: 'marker-capital',  minZoom: 0 },
-        dark:     { icon: '💀', label: 'Тёмное место', css: 'marker-dark',     minZoom: 2 },
-        city:     { icon: '🏘️', label: 'Город',        css: '',                minZoom: 2 },
-        fortress: { icon: '⚔️', label: 'Крепость',     css: '',                minZoom: 3 },
-        port:     { icon: '⚓', label: 'Порт',         css: '',                minZoom: 3 },
-        gate:     { icon: '🚪', label: 'Врата',        css: '',                minZoom: 4 },
-        village:  { icon: '🛖', label: 'Деревня',      css: '',                minZoom: 5 }
+        capital:  { emoji: '🏰', label: 'Столица',      css: 'marker-capital', sprite: { col: 1, row: 0 } },
+        city:     { emoji: '🏘️', label: 'Город',        css: '',               sprite: { col: 1, row: 1 } },
+        fortress: { emoji: '⚔️', label: 'Крепость',     css: '',               sprite: { col: 3, row: 2 } },
+        village:  { emoji: '🛖', label: 'Деревня',      css: '',               sprite: { col: 2, row: 4 } },
+        port:     { emoji: '⚓', label: 'Порт',         css: '',               sprite: { col: 4, row: 1 } },
+        region:   { emoji: '📜', label: 'Регион',       css: 'marker-region',  sprite: { col: 2, row: 2 } },
+        sea:      { emoji: '🌊', label: 'Море',         css: 'marker-sea' },
+        forest:   { emoji: '🌲', label: 'Лес',          css: 'marker-region' },
+        mountain: { emoji: '⛰️', label: 'Гора',         css: 'marker-region' },
+        dark:     { emoji: '💀', label: 'Тёмное место', css: 'marker-dark',    sprite: { col: 0, row: 2 } },
+        gate:     { emoji: '🚪', label: 'Врата',        css: '',               sprite: { col: 5, row: 2 } }
     },
 
     SUBLOCATION_TYPES: {

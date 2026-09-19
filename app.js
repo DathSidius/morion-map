@@ -1,5 +1,5 @@
 // ============================================================
-//  ЛОГИКА КАРТЫ МОРРИОНА — С ПОДЛОКАЦИЯМИ, ФРАКЦИЯМИ И ЗУМ-СЛОЯМИ
+//  ЛОГИКА КАРТЫ МОРРИОНА — С ПОДЛОКАЦИЯМИ И ФРАКЦИЯМИ
 // ============================================================
 
 const CONFIG = window.MORION_CONFIG;
@@ -90,6 +90,34 @@ function migrateLocations() {
 }
 
 // ============================================================
+//  ПОСТРОЕНИЕ HTML МАРКЕРА (со спрайтом или emoji)
+// ============================================================
+function buildMarkerHtml(info) {
+    const sprite = info.sprite;
+    const css = info.css || '';
+    const emoji = info.emoji || info.icon || '';
+
+    if (sprite && CONFIG.SPRITE_URL) {
+        // Вычисляем позицию в спрайте
+        const cols = CONFIG.SPRITE_COLS || 7;
+        const rows = CONFIG.SPRITE_ROWS || 5;
+        const xPercent = cols > 1 ? (sprite.col / (cols - 1)) * 100 : 0;
+        const yPercent = rows > 1 ? (sprite.row / (rows - 1)) * 100 : 0;
+
+        const style = [
+            `background-image: url('${CONFIG.SPRITE_URL}')`,
+            `background-size: ${cols * 100}% auto`,
+            `background-position: ${xPercent}% ${yPercent}%`
+        ].join('; ');
+
+        return `<div class="marker-icon has-sprite ${css}" style="${style}"></div>`;
+    }
+
+    // Fallback — emoji
+    return `<div class="marker-icon ${css}">${emoji}</div>`;
+}
+
+// ============================================================
 //  КАРТА
 // ============================================================
 function applyStartView(animate) {
@@ -127,70 +155,7 @@ function initMap() {
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     map.on('click', onMapClick);
-    map.on('zoomend', updateMarkerVisibility);
     window.addEventListener('resize', () => map.invalidateSize());
-}
-
-// ============================================================
-//  ЗУМ-СЛАЙДЕР СПРАВА
-// ============================================================
-function initZoomSlider() {
-    let sliderEl = document.getElementById('zoomSlider');
-    if (sliderEl) return;
-
-    sliderEl = document.createElement('div');
-    sliderEl.className = 'zoom-slider';
-    sliderEl.id = 'zoomSlider';
-
-    const input = document.createElement('input');
-    input.type = 'range';
-    input.id = 'zoomSliderInput';
-    input.min = '0';
-    input.max = String(ZOOM_LEVEL);
-    input.step = '0.25';
-    input.value = String(CONFIG.START_ZOOM);
-
-    sliderEl.appendChild(input);
-    document.body.appendChild(sliderEl);
-
-    // Слайдер → карта
-    input.addEventListener('input', () => {
-        const val = parseFloat(input.value);
-        map.setZoom(val, { animate: false });
-    });
-
-    // Карта → слайдер
-    const syncSlider = () => {
-        input.value = String(map.getZoom());
-    };
-    map.on('zoom', syncSlider);
-    map.on('zoomend', syncSlider);
-}
-
-// ============================================================
-//  ЗУМ-СЛОИ — ВИДИМОСТЬ МАРКЕРОВ
-// ============================================================
-function updateMarkerVisibility() {
-    const z = map.getZoom();
-
-    Object.values(markers).forEach(marker => {
-        if (!marker) return;
-        const el = marker.getElement();
-        if (!el) return;
-
-        // В режиме редактирования видны ВСЕ маркеры
-        if (isEditing) {
-            el.classList.remove('marker-hidden');
-            return;
-        }
-
-        const minZ = marker._minZoom || 0;
-        if (z >= minZ) {
-            el.classList.remove('marker-hidden');
-        } else {
-            el.classList.add('marker-hidden');
-        }
-    });
 }
 
 // ============================================================
@@ -255,19 +220,13 @@ function renderMarkers() {
 
         const icon = L.divIcon({
             className: 'custom-marker',
-            html: `<div class="marker-icon ${info.css || ''}">${info.icon}</div>`,
-            iconSize: [38, 38],
-            iconAnchor: [19, 44],
-            popupAnchor: [0, -40]
+            html: buildMarkerHtml(info),
+            iconSize: [48, 48],
+            iconAnchor: [24, 48],
+            popupAnchor: [0, -44]
         });
 
         const marker = L.marker(latlng, { icon, draggable: isEditing }).addTo(map);
-
-        // Минимальный зум для показа маркера
-        marker._minZoom = (loc.minZoomOverride !== undefined && loc.minZoomOverride !== null)
-            ? loc.minZoomOverride
-            : (info.minZoom || 0);
-
         marker.bindPopup(buildPopupHtml(loc), { maxWidth: 300, minWidth: 220, closeButton: true, autoPan: true });
 
         marker.on('popupopen', () => {
@@ -301,9 +260,6 @@ function renderMarkers() {
 
         markers[loc.id] = marker;
     });
-
-    // Применить зум-слои сразу
-    updateMarkerVisibility();
 }
 
 function buildPopupHtml(loc) {
@@ -319,8 +275,10 @@ function buildPopupHtml(loc) {
         extra = ' · ' + parts.join(' · ');
     }
 
+    const emoji = info.emoji || info.icon || '';
+
     return `
-        <div class="popup-header">${info.icon} ${escapeHtml(loc.name)}</div>
+        <div class="popup-header">${emoji} ${escapeHtml(loc.name)}</div>
         <div class="popup-body">
             <p>${escapeHtml(loc.short || info.label)}${extra}</p>
         </div>
@@ -329,7 +287,7 @@ function buildPopupHtml(loc) {
 }
 
 // ============================================================
-//  МОДАЛКА — БАЗОВЫЕ ФУНКЦИИ
+//  МОДАЛКА
 // ============================================================
 function closeModal() {
     const overlay = document.getElementById('modalOverlay');
@@ -396,7 +354,7 @@ function openLocationViewer(loc, activeTab) {
     setModal(`
         <div class="modal-header">
             <div class="modal-title-block">
-                <div class="modal-type">${info.icon} ${info.label}</div>
+                <div class="modal-type">${info.emoji || info.icon} ${info.label}</div>
                 <div class="modal-title">${escapeHtml(loc.name)}</div>
             </div>
             <button class="modal-close" onclick="closeModal()">✕</button>
@@ -469,7 +427,7 @@ function renderDescPanel(loc, editable, isNew = false) {
             : CONFIG.LOCATION_TYPES;
 
         const typeOptions = Object.entries(typesDict).map(([key, info]) =>
-            `<option value="${key}" ${loc.type === key ? 'selected' : ''}>${info.icon} ${info.label}</option>`
+            `<option value="${key}" ${loc.type === key ? 'selected' : ''}>${info.emoji || info.icon} ${info.label}</option>`
         ).join('');
 
         html += `<div class="form-row">
@@ -501,16 +459,6 @@ function renderDescPanel(loc, editable, isNew = false) {
             <div class="form-row">
                 <label>Цели</label>
                 <input type="text" id="f-goals" value="${escapeHtml(loc.goals || '')}" placeholder="Например: охранять паломников">
-            </div>`;
-        }
-
-        // Поле для переопределения зума
-        if (loc.kind === 'location') {
-            const currentOverride = (loc.minZoomOverride !== undefined && loc.minZoomOverride !== null) ? loc.minZoomOverride : '';
-            html += `<div class="form-row">
-                <label>Показывать с зума (необязательно)</label>
-                <input type="number" id="f-minzoom" value="${currentOverride}" min="0" max="${ZOOM_LEVEL}" step="0.5" placeholder="Пусто — по типу локации">
-                <div style="font-size:12px;color:var(--ink-muted);margin-top:4px;font-style:italic;">Оставьте пустым, чтобы использовался стандарт для типа</div>
             </div>`;
         }
 
@@ -587,18 +535,6 @@ function bindDescPanel(loc, isNew) {
             loc.short = modal.querySelector('#f-short').value.trim();
             loc.description = modal.querySelector('#f-description').value.trim();
             loc.image = fImage ? fImage.value.trim() : '';
-
-            // Поле переопределения зума (только для локаций на карте)
-            const minZoomEl = modal.querySelector('#f-minzoom');
-            if (minZoomEl && loc.kind === 'location') {
-                const val = minZoomEl.value.trim();
-                if (val === '') {
-                    loc.minZoomOverride = null;
-                } else {
-                    const num = parseFloat(val);
-                    if (!isNaN(num)) loc.minZoomOverride = num;
-                }
-            }
 
             if (loc.kind === 'faction') {
                 const leaderEl = modal.querySelector('#f-leader');
@@ -774,7 +710,7 @@ function renderLinksPanel(loc, editable) {
             const options = allLocs.map(l => {
                 const info = getTypeInfo(l);
                 const alreadyLinked = (loc.links || []).includes(l.id);
-                return `<option value="${l.id}" ${alreadyLinked ? 'disabled' : ''}>${info.icon} ${escapeHtml(l.name)}${alreadyLinked ? ' (уже связана)' : ''}</option>`;
+                return `<option value="${l.id}" ${alreadyLinked ? 'disabled' : ''}>${info.emoji || info.icon} ${escapeHtml(l.name)}${alreadyLinked ? ' (уже связана)' : ''}</option>`;
             }).join('');
             html += `<div class="form-row" style="margin-top:16px;">
                 <label>Добавить связь</label>
@@ -1412,7 +1348,6 @@ function enableEditMode() {
         editBtn.textContent = '✅ Выйти из редактора';
     }
     renderMarkers();
-    updateMarkerVisibility();
     setStatus('ok', 'Режим редактирования');
 }
 function disableEditMode() {
@@ -1424,7 +1359,6 @@ function disableEditMode() {
         editBtn.textContent = '✏️ Редактировать';
     }
     renderMarkers();
-    updateMarkerVisibility();
     setStatus('ok', 'Просмотр');
 }
 
@@ -1468,8 +1402,6 @@ if (resetBtn) {
 const facBtn = document.getElementById('factionsBtn');
 if (facBtn) {
     facBtn.onclick = () => openFactionsLibrary();
-} else {
-    console.warn('[app.js] Кнопка factionsBtn не найдена в HTML');
 }
 
 const overlayEl = document.getElementById('modalOverlay');
@@ -1489,7 +1421,6 @@ document.addEventListener('keydown', (e) => {
 (function() {
     setStatus('loading', 'Загрузка карты...');
     initMap();
-    initZoomSlider();
     applyStartView(false);
     setTimeout(() => applyStartView(false), 100);
     setTimeout(() => applyStartView(false), 400);
