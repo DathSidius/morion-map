@@ -31,7 +31,7 @@ html, body {
 #map { width: 100vw; height: 100vh; background: #2a2015; }
 .leaflet-container { background: #2a2015; font-family: var(--body-font); }
 
-/* ZOOM CONTROLS */
+/* ===== ZOOM CONTROLS ===== */
 .leaflet-control-zoom {
     border: 2px solid var(--border-strong) !important;
     border-radius: 8px !important; overflow: hidden;
@@ -48,24 +48,32 @@ html, body {
     color: var(--accent) !important;
 }
 
-/* МАРКЕРЫ С PNG */
+/* ============================================================
+   МАРКЕРЫ — уменьшенные, на белом фоне
+   ============================================================ */
 .custom-marker {
     background: transparent !important;
     border: none !important;
 }
+
 .marker-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 56px;
-    height: 56px;
+    width: 44px;
+    height: 44px;
+    background: #ffffff;
+    border: 2px solid var(--border-strong);
+    border-radius: 50%;
+    box-shadow: 0 3px 8px var(--shadow);
     cursor: pointer;
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-                filter 0.25s;
-    filter: drop-shadow(0 3px 6px var(--shadow));
-    background: transparent;
-    border: none;
+                box-shadow 0.25s,
+                border-color 0.25s;
+    padding: 5px;
+    overflow: hidden;
 }
+
 .marker-icon img {
     width: 100%;
     height: 100%;
@@ -73,18 +81,24 @@ html, body {
     display: block;
     pointer-events: none;
 }
+
 .marker-icon:hover {
     transform: scale(1.15) translateY(-3px);
-    filter: drop-shadow(0 8px 16px var(--shadow))
-            drop-shadow(0 0 10px var(--gold-light));
+    border-color: var(--gold);
+    box-shadow: 0 8px 16px var(--shadow),
+                0 0 12px var(--gold-light);
 }
+
 .marker-icon.marker-region {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
+    padding: 4px;
     opacity: 0.95;
 }
 
-/* POPUP */
+/* ============================================================
+   POPUP
+   ============================================================ */
 .leaflet-popup-content-wrapper {
     background: var(--parchment);
     border: 2px solid var(--border-strong);
@@ -145,7 +159,9 @@ html, body {
 }
 .popup-btn:hover { background: var(--accent-2); }
 
-/* ВЕРХНЯЯ ПАНЕЛЬ */
+/* ============================================================
+   ВЕРХНЯЯ ПАНЕЛЬ
+   ============================================================ */
 .top-bar {
     position: absolute; top: 16px; left: 16px; z-index: 500;
     display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
@@ -194,7 +210,9 @@ html, body {
 }
 .map-btn.active:hover { background: var(--accent-2); }
 
-/* МОДАЛКА */
+/* ============================================================
+   МОДАЛКА
+   ============================================================ */
 .modal-overlay {
     display: none;
     position: fixed;
@@ -209,6 +227,7 @@ html, body {
 }
 .modal-overlay.open { display: flex; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
 .modal {
     background: var(--parchment);
     border: 3px solid var(--border-strong);
@@ -238,6 +257,7 @@ html, body {
     z-index: 0;
 }
 .modal > * { position: relative; z-index: 1; }
+
 .modal-header {
     padding: 20px 28px;
     border-bottom: 2px solid var(--border);
@@ -295,7 +315,9 @@ html, body {
     flex: 1;
 }
 
-/* ВКЛАДКИ */
+/* ============================================================
+   ВКЛАДКИ
+   ============================================================ */
 .modal-tabs {
     display: flex;
     gap: 4px;
@@ -307,9 +329,7 @@ html, body {
     flex-shrink: 0;
 }
 .modal-tabs::-webkit-scrollbar { height: 4px; }
-.modal-tabs::-webkit-scrollbar-thumb {
-    background: var(--border-strong); border-radius: 2px;
-}
+.modal-tabs::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 .modal-tab {
     padding: 10px 16px;
     background: transparent;
@@ -351,7 +371,9 @@ html, body {
 .tab-panel { display: none; padding: 24px 28px; }
 .tab-panel.active { display: block; }
 
-/* ХЛЕБНЫЕ КРОШКИ */
+/* ============================================================
+   ХЛЕБНЫЕ КРОШКИ
+   ============================================================ */
 .breadcrumbs {
     display: flex;
     align-items: center;
@@ -382,7 +404,9 @@ html, body {
 .breadcrumbs .sep { color: var(--ink-muted); opacity: 0.6; }
 .breadcrumbs .current { color: var(--ink); font-weight: 700; }
 
-/* СПИСОК ЭЛЕМЕНТОВ */
+/* ============================================================
+   СПИСОК ЭЛЕМЕНТОВ
+   ============================================================ */
 .items-list { display: flex; flex-direction: column; gap: 10px; }
 .item-card {
     display: flex;
@@ -461,7 +485,9 @@ html, body {
     border-color: #a02818;
 }
 
-/* ПУСТОЕ СОСТОЯНИЕ */
+/* ============================================================
+   ПУСТОЕ СОСТОЯНИЕ
+   ============================================================ */
 .empty-state {
     text-align: center;
     padding: 40px 20px;
@@ -480,7 +506,9 @@ html, body {
     opacity: 0.4;
 }
 
-/* КНОПКА ДОБАВЛЕНИЯ */
+/* ============================================================
+   КНОПКА ДОБАВЛЕНИЯ
+   ============================================================ */
 .add-item-btn {
     display: flex;
     align-items: center;
@@ -508,7 +536,9 @@ html, body {
     transform: translateY(-1px);
 }
 
-/* ССЫЛКИ */
+/* ============================================================
+   ССЫЛКИ
+   ============================================================ */
 .modal-links {
     margin-top: 24px;
     padding-top: 20px;
@@ -540,13 +570,11 @@ html, body {
     gap: 6px;
 }
 .modal-link-btn:hover { background: var(--gold-light); border-color: var(--gold); }
-.modal-link-btn .remove-link {
-    color: var(--accent);
-    font-weight: 900;
-    font-size: 14px;
-}
+.modal-link-btn .remove-link { color: var(--accent); font-weight: 900; font-size: 14px; }
 
-/* КАРТИНКИ В МОДАЛКЕ */
+/* ============================================================
+   КАРТИНКИ В МОДАЛКЕ
+   ============================================================ */
 .modal-image {
     width: 100%;
     border-radius: 8px;
@@ -556,7 +584,9 @@ html, body {
     display: block;
 }
 
-/* ОПИСАНИЕ */
+/* ============================================================
+   ОПИСАНИЕ
+   ============================================================ */
 .modal-description {
     font-family: var(--body-font);
     font-size: 18px;
@@ -565,7 +595,9 @@ html, body {
     white-space: pre-wrap;
 }
 
-/* МЕТА ФРАКЦИИ */
+/* ============================================================
+   МЕТА ФРАКЦИИ
+   ============================================================ */
 .faction-meta {
     display: flex;
     flex-wrap: wrap;
@@ -591,7 +623,9 @@ html, body {
     color: var(--ink);
 }
 
-/* ФОРМА */
+/* ============================================================
+   ФОРМА
+   ============================================================ */
 .form-row { margin-bottom: 16px; }
 .form-row label {
     display: block;
@@ -648,39 +682,18 @@ html, body {
     border: 2px solid transparent;
     text-transform: uppercase;
 }
-.form-btn.primary {
-    background: var(--accent);
-    color: var(--parchment);
-    border-color: var(--accent);
-}
-.form-btn.primary:hover {
-    background: var(--accent-2);
-    border-color: var(--accent-2);
-}
-.form-btn.danger {
-    background: transparent;
-    color: var(--accent);
-    border-color: var(--accent);
-}
-.form-btn.danger:hover {
-    background: var(--accent);
-    color: var(--parchment);
-}
-.form-btn.secondary {
-    background: var(--parchment-dark);
-    color: var(--ink);
-    border-color: var(--border);
-}
+.form-btn.primary { background: var(--accent); color: var(--parchment); border-color: var(--accent); }
+.form-btn.primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+.form-btn.danger { background: transparent; color: var(--accent); border-color: var(--accent); }
+.form-btn.danger:hover { background: var(--accent); color: var(--parchment); }
+.form-btn.secondary { background: var(--parchment-dark); color: var(--ink); border-color: var(--border); }
 .form-btn.secondary:hover { background: var(--parchment-deep); }
 
-/* PIN-ФОРМА */
+/* ============================================================
+   PIN-ФОРМА
+   ============================================================ */
 .pin-form { text-align: center; padding: 20px 0; }
-.pin-display {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin: 24px 0;
-}
+.pin-display { display: flex; gap: 12px; justify-content: center; margin: 24px 0; }
 .pin-digit {
     width: 56px;
     height: 70px;
@@ -708,7 +721,9 @@ html, body {
     font-style: italic;
 }
 
-/* СТАТУС-БАР */
+/* ============================================================
+   СТАТУС-БАР
+   ============================================================ */
 .status-bar {
     position: absolute;
     bottom: 16px;
@@ -728,24 +743,10 @@ html, body {
     align-items: center;
     gap: 8px;
 }
-.status-bar .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--ink-muted);
-}
-.status-bar.ok .dot {
-    background: #4a8a2a;
-    box-shadow: 0 0 8px #4a8a2a;
-}
-.status-bar.error .dot {
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-}
-.status-bar.loading .dot {
-    background: var(--gold);
-    animation: pulse 1s infinite;
-}
+.status-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-muted); }
+.status-bar.ok .dot { background: #4a8a2a; box-shadow: 0 0 8px #4a8a2a; }
+.status-bar.error .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.status-bar.loading .dot { background: var(--gold); animation: pulse 1s infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 body.editing #map { cursor: crosshair; }
@@ -761,6 +762,6 @@ body.editing .custom-marker { cursor: move; }
     .modal-tab { padding: 8px 12px; font-size: 11px; }
     .breadcrumbs { padding: 8px 16px; }
     .pin-digit { width: 46px; height: 58px; font-size: 26px; }
-    .marker-icon { width: 44px; height: 44px; }
-    .marker-icon.marker-region { width: 38px; height: 38px; }
+    .marker-icon { width: 38px; height: 38px; padding: 4px; }
+    .marker-icon.marker-region { width: 32px; height: 32px; }
 }

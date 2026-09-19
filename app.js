@@ -206,9 +206,9 @@ function renderMarkers() {
         const icon = L.divIcon({
             className: 'custom-marker',
             html: buildMarkerHtml(info),
-            iconSize: [56, 56],
-            iconAnchor: [28, 56],
-            popupAnchor: [0, -52]
+            iconSize: [44, 44],
+            iconAnchor: [22, 44],
+            popupAnchor: [0, -40]
         });
 
         const marker = L.marker(latlng, { icon, draggable: isEditing }).addTo(map);
