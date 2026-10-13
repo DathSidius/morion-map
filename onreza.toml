@@ -1,0 +1,5 @@
+[build]
+output_dirs = ["onreza-output"]
+
+[deploy]
+entry = "server.js"
