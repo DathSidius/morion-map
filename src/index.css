@@ -1,0 +1,180 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@layer base {
+  :root {
+    --font-display: 'Cinzel', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #0b0d10;
+    color: #ebe6dc;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Leaflet canvas & controls aligned to dark obsidian cartography */
+.leaflet-container {
+  background: #0b0d10;
+  font-family: var(--font-sans);
+}
+
+.leaflet-container.morion-editing-cursor {
+  cursor: crosshair;
+}
+
+.leaflet-control-zoom {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: #13161c !important;
+  color: #ebe6dc !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.leaflet-control-zoom a:last-child {
+  border-bottom: none !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: #1d222c !important;
+  color: #d4a359 !important;
+}
+
+/* Custom Map Markers */
+.morion-marker-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+
+.morion-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 6px;
+  border-radius: 9999px;
+  background: #f6f2e9;
+  border: 2px solid #261d12;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms ease, box-shadow 180ms ease;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.morion-pin.compact {
+  width: 34px;
+  height: 34px;
+  padding: 4px;
+  font-size: 15px;
+}
+
+.morion-pin.selected,
+.morion-pin:hover {
+  transform: scale(1.14) translateY(-2px);
+  border-color: #d4a359;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.65), 0 0 0 3px rgba(212, 163, 89, 0.28);
+}
+
+.morion-pin.editable {
+  border-color: #d4a359;
+  cursor: grab;
+}
+
+.morion-pin.editable:active {
+  cursor: grabbing;
+}
+
+.morion-pin img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+/* Leaflet Popups */
+.leaflet-popup-content-wrapper {
+  background: #13161c;
+  color: #ebe6dc;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+  padding: 0;
+}
+
+.leaflet-popup-tip {
+  background: #13161c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  min-width: 220px;
+  max-width: 290px;
+}
+
+.leaflet-popup-close-button {
+  color: #9ca3af !important;
+  padding: 6px 8px !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #ebe6dc !important;
+}
+
+/* Subtle custom scrollbars inside sidebars/modals */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .morion-pin {
+    transition: none;
+  }
+}

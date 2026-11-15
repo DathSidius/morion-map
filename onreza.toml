@@ -1,5 +1,6 @@
 [build]
-output_dirs = ["onreza-output"]
+command = "npm run build"
+output_dirs = ["dist"]
 
 [deploy]
-entry = "server.js"
+entry = "server.ts"
