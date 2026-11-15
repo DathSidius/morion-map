@@ -68,6 +68,19 @@ export default function App() {
     }, 4500);
   }, []);
 
+  const applyAtlasState = useCallback((nextLocations: MapRecord[], nextVersion: number) => {
+    setLocations(nextLocations);
+    setVersion(nextVersion);
+    try {
+      localStorage.setItem(
+        'morion_atlas_cache',
+        JSON.stringify({ locations: nextLocations, version: nextVersion })
+      );
+    } catch {
+      // ignore storage quota errors
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -75,10 +88,14 @@ export default function App() {
         fetchAtlas(),
         fetchHealth().catch(() => ({ storage: 'file' as const, devDefaultPinActive: false })),
       ]);
-      setLocations(atlas.locations);
-      setVersion(atlas.version);
+      applyAtlasState(atlas.locations, atlas.version);
       setDevDefaultPinActive(health.devDefaultPinActive);
-      localStorage.setItem('morion_atlas_cache', JSON.stringify(atlas));
+      if (!health.devDefaultPinActive && health.storage === 'file') {
+        notify(
+          'error',
+          'PostgreSQL не подключён — данные сохраняются во временные файлы и могут сброситься при перезапуске'
+        );
+      }
     } catch (err) {
       const cached = localStorage.getItem('morion_atlas_cache');
       if (cached) {
@@ -98,7 +115,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [notify]);
+  }, [applyAtlasState, notify]);
 
   useEffect(() => {
     loadData();
@@ -136,8 +153,30 @@ export default function App() {
           return;
         }
         if (err.status === 409 && err.atlas) {
-          setLocations(err.atlas.locations);
-          setVersion(err.atlas.version);
+          if (locations.length > 0 && err.atlas.locations.length === 0) {
+            try {
+              localStorage.setItem(
+                'morion_atlas_recovery',
+                JSON.stringify({
+                  version: 2,
+                  exportedAt: new Date().toISOString(),
+                  locationsCount: locations.length,
+                  imagesCount: 0,
+                  locations,
+                  images: [],
+                })
+              );
+            } catch {
+              // ignore
+            }
+            setVersion(err.atlas.version);
+            notify(
+              'error',
+              'Сервер перезапустился с пустым хранилищем. Ваши текущие локации сохранены в браузере — проверьте подключение БД и нажмите Сохранить/Восстановить.'
+            );
+            return;
+          }
+          applyAtlasState(err.atlas.locations, err.atlas.version);
           notify('info', err.message);
           return;
         }
@@ -146,7 +185,7 @@ export default function App() {
       }
       notify('error', err instanceof Error ? err.message : 'Неизвестная ошибка');
     },
-    [notify]
+    [applyAtlasState, locations, notify]
   );
 
   const handlePinSubmit = async (pin: string) => {
@@ -182,14 +221,12 @@ export default function App() {
     try {
       if (isNew) {
         const res = await createRecordApi(token, draft, version);
-        setLocations(res.locations);
-        setVersion(res.version);
+        applyAtlasState(res.locations, res.version);
         setSelectedId(res.record.id);
         notify('success', `Создано: ${res.record.name}`);
       } else {
         const res = await updateRecordApi(token, draft.id, draft, version);
-        setLocations(res.locations);
-        setVersion(res.version);
+        applyAtlasState(res.locations, res.version);
         notify('success', `Сохранено: ${draft.name}`);
       }
       setActiveRecord(null);
@@ -205,8 +242,7 @@ export default function App() {
     if (!token) return;
     try {
       const res = await updateRecordApi(token, loc.id, { x, y }, version);
-      setLocations(res.locations);
-      setVersion(res.version);
+      applyAtlasState(res.locations, res.version);
       notify('success', `Координаты «${loc.name}» обновлены`);
     } catch (err) {
       handleApiError(err);
@@ -220,8 +256,7 @@ export default function App() {
     setSaving(true);
     try {
       const res = await deleteRecordApi(token, target.id, version);
-      setLocations(res.locations);
-      setVersion(res.version);
+      applyAtlasState(res.locations, res.version);
       if (activeRecord?.id === target.id) {
         setActiveRecord(null);
         setActiveIsNew(false);
@@ -244,8 +279,7 @@ export default function App() {
     const nextBases = Array.from(new Set([...(fac.bases || []), locId]));
     try {
       const res = await updateRecordApi(token, fac.id, { bases: nextBases }, version);
-      setLocations(res.locations);
-      setVersion(res.version);
+      applyAtlasState(res.locations, res.version);
       notify('success', `Фракция «${fac.name}» привязана`);
     } catch (err) {
       handleApiError(err);
@@ -259,8 +293,7 @@ export default function App() {
     const nextBases = (fac.bases || []).filter((id) => id !== locId);
     try {
       const res = await updateRecordApi(token, fac.id, { bases: nextBases }, version);
-      setLocations(res.locations);
-      setVersion(res.version);
+      applyAtlasState(res.locations, res.version);
       notify('info', `Фракция «${fac.name}» отвязана`);
     } catch (err) {
       handleApiError(err);
@@ -277,8 +310,7 @@ export default function App() {
       : prev.filter((id) => id !== targetId);
     try {
       const res = await updateRecordApi(token, sourceId, { links: next }, version);
-      setLocations(res.locations);
-      setVersion(res.version);
+      applyAtlasState(res.locations, res.version);
       notify('success', add ? 'Связь добавлена' : 'Связь удалена');
     } catch (err) {
       handleApiError(err);
@@ -303,13 +335,11 @@ export default function App() {
     try {
       if (isNew) {
         const res = await createRecordApi(token, draft, version);
-        setLocations(res.locations);
-        setVersion(res.version);
+        applyAtlasState(res.locations, res.version);
         notify('success', `Фракция «${res.record.name}» создана`);
       } else {
         const res = await updateRecordApi(token, draft.id, draft, version);
-        setLocations(res.locations);
-        setVersion(res.version);
+        applyAtlasState(res.locations, res.version);
         notify('success', `Фракция «${draft.name}» обновлена`);
       }
     } catch (err) {

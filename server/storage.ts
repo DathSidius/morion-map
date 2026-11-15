@@ -284,8 +284,38 @@ class PostgresStorageAdapter implements StorageAdapter {
 
     this.pool = new Pool({
       connectionString: databaseUrl,
+      idleTimeoutMillis: 20000,
+      connectionTimeoutMillis: 15000,
+      max: 5,
       ...(ssl !== undefined ? { ssl } : {}),
     });
+
+    // Prevent unhandled 'error' events when managed Postgres (e.g. ONREZA Autosleep) drops idle connections
+    this.pool.on('error', (err) => {
+      console.error('Postgres pool idle error:', err.message);
+    });
+  }
+
+  private async withRetry<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      const code = (err as { code?: string })?.code || '';
+      const msg = err instanceof Error ? err.message : '';
+      const isTransient =
+        code === 'ECONNRESET' ||
+        code === 'ETIMEDOUT' ||
+        code === 'ECONNREFUSED' ||
+        code === '57P01' ||
+        code === '57P02' ||
+        code === '57P03' ||
+        code === '08003' ||
+        code === '08006' ||
+        /Connection terminated|terminating connection|timeout/i.test(msg);
+      if (!isTransient) throw err;
+      await new Promise((r) => setTimeout(r, 700));
+      return fn();
+    }
   }
 
   async init(): Promise<void> {
@@ -334,24 +364,30 @@ class PostgresStorageAdapter implements StorageAdapter {
   }
 
   async getAtlas(): Promise<AtlasState> {
-    const [metaRes, locRes] = await Promise.all([
-      this.pool.query<{ version: number }>(`SELECT version FROM atlas_meta WHERE key = 'main'`),
-      this.pool.query<{ data: MapRecord }>(`SELECT data FROM locations ORDER BY updated_at DESC`),
-    ]);
-    return {
-      locations: locRes.rows.map((r) => r.data),
-      version: metaRes.rows[0]?.version ?? 1,
-    };
+    return this.withRetry(async () => {
+      const [metaRes, locRes] = await Promise.all([
+        this.pool.query<{ version: number }>(`SELECT version FROM atlas_meta WHERE key = 'main'`),
+        this.pool.query<{ data: MapRecord }>(`SELECT data FROM locations ORDER BY updated_at DESC`),
+      ]);
+      return {
+        locations: locRes.rows.map((r) => r.data),
+        version: metaRes.rows[0]?.version ?? 1,
+      };
+    });
   }
 
   private async runVersionedMutation(
     expectedVersion: number | undefined,
     mutator: (current: MapRecord[]) => MapRecord[]
   ): Promise<AtlasState> {
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
-      const state = await this.readAtlasWithClient(client);
+    return this.withRetry(async () => {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `INSERT INTO atlas_meta (key, version) VALUES ('main', 1) ON CONFLICT (key) DO NOTHING`
+        );
+        const state = await this.readAtlasWithClient(client);
       if (expectedVersion !== undefined && expectedVersion !== state.version) {
         await client.query('ROLLBACK');
         throw new ConflictError('Карта была изменена другим пользователем. Данные обновлены.', state);
@@ -392,6 +428,7 @@ class PostgresStorageAdapter implements StorageAdapter {
     } finally {
       client.release();
     }
+    });
   }
 
   async createRecord(record: MapRecord, expectedVersion?: number): Promise<AtlasState> {
